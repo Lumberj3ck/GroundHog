@@ -1,13 +1,29 @@
 package patterns
 
-const PlanDay = `
-Based on my journal notes, plan my day.
+// Pre-defined analysis patterns for the agent.
 
-My journal notes:
-`
+const (
+	// PlanDay asks the agent to plan the day based on journal notes.
+	PlanDay = "Based on the provided notes, create a detailed plan for my day."
 
-const AnalyseMyDay = `
-Based on my journal notes, analyse my day.
+	// AnalyseMyDay asks the agent to analyze the day based on journal notes.
+	AnalyseMyDay = "Based on the provided notes, analyze my day and give me feedback."
 
-My journal notes:
-`
+	// Summarize asks the agent to summarize the notes.
+	Summarize = "Summarize the key points from the provided notes in a few sentences."
+
+	// IdentifyKeyPeople asks the agent to identify key people mentioned in the notes.
+	IdentifyKeyPeople = "List all the people mentioned in the provided notes."
+
+	// ExtractActionItems asks the agent to extract action items from the notes.
+	ExtractActionItems = "Extract all action items or tasks from the provided notes."
+)
+
+// AllPatterns is a map of pattern names to their corresponding prompt.
+var AllPatterns = map[string]string{
+	"Plan Day":           PlanDay,
+	"Analyse My Day":     AnalyseMyDay,
+	"Summarize Notes":    Summarize,
+	"Identify People":    IdentifyKeyPeople,
+	"Extract Actions":    ExtractActionItems,
+}
