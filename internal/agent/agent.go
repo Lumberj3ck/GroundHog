@@ -7,8 +7,8 @@ import (
 )
 
 // NewAgent creates a new langchain agent.
-func NewAgent(llm llms.Model) *agents.Executor {
-	agent := agents.NewOneShotAgent(llm)
+func NewAgent(llm llms.Model, tools []langchainTools.Tool) (*agents.Executor, *agents.OneShotZeroAgent){
+	agent := agents.NewOneShotAgent(llm, tools)
 	
-	return agents.NewExecutor(agent, agents.WithMaxIterations(5))
+	return agents.NewExecutor(agent, agents.WithMaxIterations(5)), agent
 }
