@@ -13,7 +13,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/tmc/langchaingo/agents"
 	"github.com/tmc/langchaingo/llms/openai"
-	"github.com/tmc/langchaingo/memory"
 	"github.com/tmc/langchaingo/tools"
 )
 
@@ -29,7 +28,7 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func handleConnections(w http.ResponseWriter, r *http.Request, agent *agents.Executor) {
+func handleConnections(w http.ResponseWriter, r *http.Request, executor *agents.Executor) {
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
@@ -38,6 +37,14 @@ func handleConnections(w http.ResponseWriter, r *http.Request, agent *agents.Exe
 	defer ws.Close()
 
 	log.Println("Client connected")
+
+	var toolDescs string
+	var toolNames string
+	for _, tool := range executor.Agent.(*agents.OneShotZeroAgent).Tools {
+		toolDescs += fmt.Sprintf("%s: %s\n", tool.Name(), tool.Description())
+		toolNames += tool.Name() + ", "
+	}
+	toolNames = toolNames[:len(toolNames)-2] // Remove trailing comma and space
 
 	for {
 		// Read message from browser
@@ -61,30 +68,36 @@ func handleConnections(w http.ResponseWriter, r *http.Request, agent *agents.Exe
 			patternText = "Please act on the following request."
 		}
 
-		// Construct the prompt for the agent
-		prompt := fmt.Sprintf(
-			"Pattern: \"%s\"\nUser Request: \"%s\"\n\nUse your tools if necessary to answer the request.",
-			patternText,
-			msg.Message,
-		)
+		// Combine the pattern and message into a single, clear instruction for the agent.
+		var userInput string
+		if msg.Message != "" {
+			userInput = fmt.Sprintf("%s\n\nMy specific focus for this request is: \"%s\"", patternText, msg.Message)
+		} else {
+			userInput = patternText
+		}
 
-		// Call the agent
-		response, err := agent.Call(context.Background(), map[string]any{
-			"input": prompt,
+		fmt.Println(userInput)
+
+
+		output, err := executor.Call(context.Background(), map[string]any{
+			"input": msg.Message,
 		})
+		response := output["output"].(string)
+		log.Println(output)
+
 		if err != nil {
-			log.Println("Agent Error:", err)
+			log.Printf("Agent Error: %v\n", err)
+			// Also log the full response map if available, it might contain partial data
+			log.Printf("Full response on error: %+v\n", response)
+
 			if writeErr := ws.WriteMessage(websocket.TextMessage, []byte("Sorry, I encountered an error.")); writeErr != nil {
 				log.Println("Write error:", writeErr)
 			}
 			continue
 		}
 
-		// Send response back to browser
-		if err := ws.WriteMessage(websocket.TextMessage, []byte(response["output"].(string))); err != nil {
-			log.Println("Write error:", err)
-			break
-		}
+		ws.WriteMessage(websocket.TextMessage, []byte(response))
+		log.Printf("Agent Response: %+v\n", response)
 	}
 }
 
@@ -101,7 +114,6 @@ func handlePatterns(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	// Initialize LLM
 	llm, err := openai.New(
 		openai.WithBaseURL("https://api.groq.com/openai/v1"),
 		openai.WithModel("openai/gpt-oss-20b"),
@@ -110,21 +122,14 @@ func main() {
 		log.Fatal("Failed to initialize LLM:", err)
 	}
 
-	// Initialize Tools
 	availableTools := []tools.Tool{
 		customTools.NotesReader{},
 		tools.Calculator{},
 	}
 
-	// Create memory for the agent
-	mem := memory.NewConversationBuffer()
-
-	// Create the agent executor
 	agentExecutor, _ := agent.NewAgent(llm, availableTools)
-	agentExecutor.Memory = mem // Attach memory to the executor
 
 	// --- HTTP Server Setup ---
-
 	// Serve the HTML file
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "index.html")
