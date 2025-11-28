@@ -19,11 +19,13 @@ const (
 	ExtractActionItems = "Extract all action items or tasks from the provided notes."
 )
 
+const DefaultPattern = 	"No pattern"
 // AllPatterns is a map of pattern names to their corresponding prompt.
 var AllPatterns = map[string]string{
-	"Plan Day":           PlanDay,
-	"Analyse My Day":     AnalyseMyDay,
-	"Summarize Notes":    Summarize,
-	"Identify People":    IdentifyKeyPeople,
-	"Extract Actions":    ExtractActionItems,
+	DefaultPattern:      "",
+	"Plan Day":        PlanDay,
+	"Analyse My Day":  AnalyseMyDay,
+	"Summarize Notes": Summarize,
+	"Identify People": IdentifyKeyPeople,
+	"Extract Actions": ExtractActionItems,
 }

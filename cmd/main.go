@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"groundhog/internal/agent"
+	"groundhog/internal/notes"
 	"groundhog/internal/patterns"
-	customTools "groundhog/internal/tools"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/websocket"
 	"github.com/tmc/langchaingo/agents"
@@ -28,7 +29,7 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func handleConnections(w http.ResponseWriter, r *http.Request, executor *agents.Executor) {
+func handleConnections(w http.ResponseWriter, r *http.Request, notesDir string, executor *agents.Executor) {
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
@@ -37,14 +38,6 @@ func handleConnections(w http.ResponseWriter, r *http.Request, executor *agents.
 	defer ws.Close()
 
 	log.Println("Client connected")
-
-	var toolDescs string
-	var toolNames string
-	for _, tool := range executor.Agent.(*agents.OneShotZeroAgent).Tools {
-		toolDescs += fmt.Sprintf("%s: %s\n", tool.Name(), tool.Description())
-		toolNames += tool.Name() + ", "
-	}
-	toolNames = toolNames[:len(toolNames)-2] // Remove trailing comma and space
 
 	for {
 		// Read message from browser
@@ -68,7 +61,6 @@ func handleConnections(w http.ResponseWriter, r *http.Request, executor *agents.
 			patternText = "Please act on the following request."
 		}
 
-		// Combine the pattern and message into a single, clear instruction for the agent.
 		var userInput string
 		if msg.Message != "" {
 			userInput = fmt.Sprintf("%s\n\nMy specific focus for this request is: \"%s\"", patternText, msg.Message)
@@ -76,35 +68,45 @@ func handleConnections(w http.ResponseWriter, r *http.Request, executor *agents.
 			userInput = patternText
 		}
 
+		n, err := notes.GetLastNotes(notesDir, 5)
+		if err != nil{
+			ws.WriteMessage(websocket.TextMessage, []byte("Couldn't get last notes"))
+		}
+
+		userInput += "\nNotes content: \n" + notes.PromptFormatNotes(n)
+
 		fmt.Println(userInput)
-
-
 		output, err := executor.Call(context.Background(), map[string]any{
-			"input": msg.Message,
+			"input": userInput,
 		})
-		response := output["output"].(string)
-		log.Println(output)
 
 		if err != nil {
 			log.Printf("Agent Error: %v\n", err)
-			// Also log the full response map if available, it might contain partial data
-			log.Printf("Full response on error: %+v\n", response)
+			log.Printf("Full response on error: %+v\n", output)
 
 			if writeErr := ws.WriteMessage(websocket.TextMessage, []byte("Sorry, I encountered an error.")); writeErr != nil {
 				log.Println("Write error:", writeErr)
 			}
 			continue
 		}
-
+		llmOut := output["output"]
+		response, ok := llmOut.(string)
+		if !ok{
+			log.Println("Couldn't get proper output from llm")
+		}
 		ws.WriteMessage(websocket.TextMessage, []byte(response))
-		log.Printf("Agent Response: %+v\n", response)
 	}
 }
 
 func handlePatterns(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	patternNames := make([]string, 0, len(patterns.AllPatterns))
+	patternNames = append(patternNames, patterns.DefaultPattern) 
+
 	for name := range patterns.AllPatterns {
+		if name == patterns.DefaultPattern{
+			continue
+		}
 		patternNames = append(patternNames, name)
 	}
 	if err := json.NewEncoder(w).Encode(patternNames); err != nil {
@@ -114,6 +116,12 @@ func handlePatterns(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	notesDir := os.Getenv("NOTES_DIR")
+
+	if notesDir == "" {
+		log.Fatalf("Please, provide NOTES_DIR environmnet variable")
+	}
+
 	llm, err := openai.New(
 		openai.WithBaseURL("https://api.groq.com/openai/v1"),
 		openai.WithModel("openai/gpt-oss-20b"),
@@ -123,7 +131,6 @@ func main() {
 	}
 
 	availableTools := []tools.Tool{
-		customTools.NotesReader{},
 		tools.Calculator{},
 	}
 
@@ -140,7 +147,7 @@ func main() {
 
 	// Websocket route
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		handleConnections(w, r, agentExecutor)
+		handleConnections(w, r, notesDir, agentExecutor)
 	})
 
 	port := 8080
