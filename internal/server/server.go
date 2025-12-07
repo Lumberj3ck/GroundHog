@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"groundhog/internal/notes"
-	"groundhog/internal/patterns"
 	"log"
 	"net/http"
+
+	"groundhog/internal/notes"
+	"groundhog/internal/patterns"
 
 	"github.com/gorilla/websocket"
 	"github.com/tmc/langchaingo/agents"
@@ -68,6 +69,8 @@ func (o *oauthHandler) handleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	// Use token to call Google APIs or store it for later use
 	fmt.Fprintf(w, "Access Token: %s\nRefresh Token: %s", token.AccessToken, token.RefreshToken)
+	// db save for token 
+	// tools.Call(o.oauthConfig.TokenSource(context.Background(), token))
 }
 
 func New(notesDir string, agentExecutor *agents.Executor, oauthConfig *oauth2.Config) http.Handler {
@@ -81,7 +84,9 @@ func New(notesDir string, agentExecutor *agents.Executor, oauthConfig *oauth2.Co
 		handleConnections(w, r, notesDir, agentExecutor)
 	})
 
-	mux.Handle("/oauth/", newOauthHandler(oauthConfig))
+	if oauthConfig != nil{
+		mux.Handle("/oauth/", newOauthHandler(oauthConfig))
+	}
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "index.html")

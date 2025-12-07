@@ -16,3 +16,6 @@ Prompt examples:
 1. I dont like current task, remove it from calendar.
 2. I will have training in 1.5 hour update my plan accordingly
 
+
+Self host is becomes harder because to make it self host we would have to create our own google cloud app and then go into oauth and get client_id and client_secret and after that we need to add allowed scopes for the app and only after that we would be able to login after we allow for a tester user because it takes 3-7 days for google to check us.
+

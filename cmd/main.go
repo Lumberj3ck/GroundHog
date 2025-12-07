@@ -1,9 +1,11 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"groundhog/internal/agent"
 	"groundhog/internal/server"
+	gtools "groundhog/internal/tools/calendar"
 	"log"
 	"net/http"
 	"os"
@@ -11,6 +13,8 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/tmc/langchaingo/llms/openai"
 	"github.com/tmc/langchaingo/tools"
+
+	"google.golang.org/api/option"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
@@ -18,6 +22,17 @@ import (
 
 
 func main() {
+	withCredsFile := flag.String("with-creds-file", "", "filename with json creds of the service acount")
+	withOauth := flag.Bool("with-creds-oauth", false, "enable oauth authentication with the app")
+	flag.Parse()
+
+	if *withCredsFile == "" && !*withOauth {
+		fmt.Fprintln(os.Stderr, "Either with-creds-file or with-creds-oauth flag must be provided")
+		flag.Usage()
+		os.Exit(2)
+	}
+
+
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
@@ -37,35 +52,48 @@ func main() {
 		log.Fatal("Failed to initialize LLM:", err)
 	}
 
+	// creds := option.WithTokenSource(tokenSource)
+	// creds := option.WithCredentialsFile("groundhog-479817-3032818aaae4.json")
+	var creds option.ClientOption
+	var userTokenSource *oauth2.TokenSource
+
+	// if *withOauth{
+	// 	creds = option.WithTokenSource(*userTokenSource)
+	// } else {
+	// 	creds = option.WithCredentialsFile(*withCredsFile)
+	// }
+
+	calendar := gtools.New(userTokenSource)
 	availableTools := []tools.Tool{
 		tools.Calculator{},
+		calendar,
 	}
 
 	agentExecutor, _ := agent.NewAgent(llm, availableTools)
 
-	googleClientId := os.Getenv("GOOGLE_CLIENT_ID")
-	if googleClientId == "" {
-		log.Fatalf("Please, provide GOOGLE_CLIENT_ID environmnet variable")
-	}
-	googleSecret := os.Getenv("GOOGLE_SECRET")
-	if googleSecret == "" {
-		log.Fatalf("Please, provide GOOGLE_SECRET environmnet variable")
-	}
-	googleRedirectUrl := os.Getenv("GOOGLE_REDIRECT_URL")
-	if googleRedirectUrl == "" {
-		log.Fatalf("Please, provide GOOGLE_REDIRECT_URL environmnet variable")
-	}
-
-
-	oauthConfig := &oauth2.Config{
-		ClientID:     googleClientId,
-		ClientSecret: googleSecret,
-		RedirectURL: googleRedirectUrl,
-		Scopes: []string{
-			"https://www.googleapis.com/auth/userinfo.email",
-			"https://www.googleapis.com/auth/userinfo.profile",
-		},
-		Endpoint: google.Endpoint,
+	var oauthConfig *oauth2.Config
+	if *withOauth{
+		googleClientId := os.Getenv("GOOGLE_CLIENT_ID")
+		if googleClientId == "" {
+			log.Fatalf("Please, provide GOOGLE_CLIENT_ID environmnet variable")
+		}
+		googleSecret := os.Getenv("GOOGLE_SECRET")
+		if googleSecret == "" {
+			log.Fatalf("Please, provide GOOGLE_SECRET environmnet variable")
+		}
+		googleRedirectUrl := os.Getenv("GOOGLE_REDIRECT_URL")
+		if googleRedirectUrl == "" {
+			log.Fatalf("Please, provide GOOGLE_REDIRECT_URL environmnet variable")
+		}
+		oauthConfig = &oauth2.Config{
+			ClientID:     googleClientId,
+			ClientSecret: googleSecret,
+			RedirectURL: googleRedirectUrl,
+			Scopes: []string{
+				"https://www.googleapis.com/auth/calendar",
+			},
+			Endpoint: google.Endpoint,
+		}
 	}
 
 	server := server.New(notesDir, agentExecutor, oauthConfig)
