@@ -49,7 +49,11 @@ func main() {
 		notes.NewTool(notesDir, 5),
 	}
 	if calendarEnabled {
-		availableTools = append(availableTools, gtools.New(*withCredsFile))
+		availableTools = append(
+			availableTools,
+			gtools.New(*withCredsFile),
+			gtools.NewAddEvent(*withCredsFile),
+		)
 	}
 
 	agentExecutor, _ := agent.NewAgent(llm, availableTools)
