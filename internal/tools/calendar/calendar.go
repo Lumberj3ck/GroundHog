@@ -3,50 +3,61 @@ package calendar
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
+	"golang.org/x/oauth2"
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/option"
 
-	"github.com/tmc/langchaingo/tools"
 	"github.com/tmc/langchaingo/callbacks"
+	"github.com/tmc/langchaingo/tools"
 )
 
-type Calendar struct{
-	auth option.ClientOption
+type Calendar struct {
+	credFile         string
 	CallbacksHandler callbacks.Handler
 }
 
-var _ tools.Tool = Calendar{}
+var _ tools.Tool = &Calendar{}
 
-func New(authType option.ClientOption) tools.Tool{ 
-	return Calendar{
-		auth: authType,
-	} 
+func New(credFile string) *Calendar {
+	return &Calendar{
+		credFile:    credFile,
+	}
 }
 
-func (c Calendar) Description() string {
-	return `Useful for getting the result of a math expression. 
-	The input to this tool should be a valid mathematical expression that could be executed by a starlark evaluator.`
-}
-
-func (c Calendar) Name() string {
+func (c *Calendar) Name() string {
 	return "calendar"
 }
 
-func (c Calendar) Call(ctx context.Context, input string) (string, error) {
-	// Create a Calendar service client.
-	srv, err := calendar.NewService(context.Background(), c.auth)
+
+func (c *Calendar) Description() string {
+	return `Useful for getting events from the users google calendar.`
+}
+
+func (c *Calendar) Call(ctx context.Context, input string) (string, error) {
+	var cred option.ClientOption
+	if ctx.Value("OauthTokenSource") == nil && c.credFile == "" {
+		return "", fmt.Errorf("authentication for calendar tool is not configured yet")
+	} else if ctx.Value("OauthTokenSource")!= nil {
+		t, o := ctx.Value("OauthTokenSource").(oauth2.TokenSource)
+		if !o{
+			return "", fmt.Errorf("Context value OauthTokenSource is not valid")
+		}
+		cred = option.WithTokenSource(t)
+	} else if c.credFile != "" {
+		cred = option.WithCredentialsFile(c.credFile)
+	}
+
+	srv, err := calendar.NewService(context.Background(), cred)
 	if err != nil {
-		log.Fatalf("Unable to create Calendar service: %v", err)
+		return "", fmt.Errorf("Unable to create Calendar service: %v", err)
 	}
 
 	// Define the time window you want to query.
-	start := time.Now().Format(time.RFC3339)                     // now
+	start := time.Now().Format(time.RFC3339)                       // now
 	end := time.Now().Add(3 * 24 * time.Hour).Format(time.RFC3339) // next 24 h
 
-	// Build the request.
 	eventsCall := srv.Events.List("primary").
 		ShowDeleted(false).
 		SingleEvents(true).
@@ -57,22 +68,22 @@ func (c Calendar) Call(ctx context.Context, input string) (string, error) {
 	// Execute the request.
 	events, err := eventsCall.Do()
 	if err != nil {
-		log.Fatalf("Unable to retrieve events: %v", err)
+		return "", fmt.Errorf("Unable to retrieve events: %v", err)
 	}
 
 	// Print the events.
 	if len(events.Items) == 0 {
-		fmt.Println("No upcoming events found.")
-	} else {
-		fmt.Println("Upcoming events:")
-		for _, e := range events.Items {
-			start := e.Start.DateTime
-			if start == "" {
-				// All‑day events use the Date field instead.
-				start = e.Start.Date
-			}
-			fmt.Printf("%s – %s\n", start, e.Summary)
-		}
+		return "No upcoming events found.", nil
 	}
-	return "", nil
+
+	var result string
+	for _, e := range events.Items {
+		start := e.Start.DateTime
+		if start == "" {
+			// All‑day events use the Date field instead.
+			start = e.Start.Date
+		}
+		result += fmt.Sprintf("%s – %s\n", start, e.Summary)
+	}
+	return result, nil
 }

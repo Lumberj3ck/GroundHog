@@ -14,12 +14,9 @@ import (
 	"github.com/tmc/langchaingo/llms/openai"
 	"github.com/tmc/langchaingo/tools"
 
-	"google.golang.org/api/option"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
-
-
 
 func main() {
 	withCredsFile := flag.String("with-creds-file", "", "filename with json creds of the service acount")
@@ -31,7 +28,6 @@ func main() {
 		flag.Usage()
 		os.Exit(2)
 	}
-
 
 	err := godotenv.Load()
 	if err != nil {
@@ -52,18 +48,7 @@ func main() {
 		log.Fatal("Failed to initialize LLM:", err)
 	}
 
-	// creds := option.WithTokenSource(tokenSource)
-	// creds := option.WithCredentialsFile("groundhog-479817-3032818aaae4.json")
-	var creds option.ClientOption
-	var userTokenSource *oauth2.TokenSource
-
-	// if *withOauth{
-	// 	creds = option.WithTokenSource(*userTokenSource)
-	// } else {
-	// 	creds = option.WithCredentialsFile(*withCredsFile)
-	// }
-
-	calendar := gtools.New(userTokenSource)
+	calendar := gtools.New(*withCredsFile)
 	availableTools := []tools.Tool{
 		tools.Calculator{},
 		calendar,
@@ -72,7 +57,7 @@ func main() {
 	agentExecutor, _ := agent.NewAgent(llm, availableTools)
 
 	var oauthConfig *oauth2.Config
-	if *withOauth{
+	if *withOauth {
 		googleClientId := os.Getenv("GOOGLE_CLIENT_ID")
 		if googleClientId == "" {
 			log.Fatalf("Please, provide GOOGLE_CLIENT_ID environmnet variable")
@@ -88,7 +73,7 @@ func main() {
 		oauthConfig = &oauth2.Config{
 			ClientID:     googleClientId,
 			ClientSecret: googleSecret,
-			RedirectURL: googleRedirectUrl,
+			RedirectURL:  googleRedirectUrl,
 			Scopes: []string{
 				"https://www.googleapis.com/auth/calendar",
 			},

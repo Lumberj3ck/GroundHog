@@ -18,9 +18,9 @@ type DateFile struct {
 
 func PromptFormatNotes(notes []DateFile) string {
 	prompt := ""
-	for i, note := range notes{
+	for i, note := range notes {
 		c, err := os.ReadFile(note.FilePath)
-		if err != nil{
+		if err != nil {
 			log.Println("Couldn't read note file")
 			continue
 		}
@@ -30,10 +30,11 @@ func PromptFormatNotes(notes []DateFile) string {
 	return prompt
 }
 
-func GetLastNotes(notesDir string, amount int) ([]DateFile, error){
+func GetLastNotes(notesDir string, amount int) ([]DateFile, error) {
 	dirEntries, err := os.ReadDir(notesDir)
 
 	if err != nil {
+		log.Printf("Couldn't read note directory: %v ", err)
 		return nil, fmt.Errorf("Couldn't read note directory")
 	}
 
@@ -43,7 +44,7 @@ func GetLastNotes(notesDir string, amount int) ([]DateFile, error){
 		r := regexp.MustCompile(`\d{4}-\d{2}-\d{2}`)
 		fileName := entry.Name()
 		absPath, err := filepath.Abs(filepath.Join(notesDir, entry.Name()))
-		if err != nil{
+		if err != nil {
 			log.Printf("Couldn't construct abs path: %v", err)
 			continue
 		}
