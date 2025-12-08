@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"groundhog/internal/agent"
+	"groundhog/internal/notes"
 	"groundhog/internal/server"
 	gtools "groundhog/internal/tools/calendar"
 	"log"
@@ -45,6 +46,7 @@ func main() {
 	calendarEnabled := *withCredsFile != "" || *withOauth
 	availableTools := []tools.Tool{
 		tools.Calculator{},
+		notes.NewTool(notesDir, 5),
 	}
 	if calendarEnabled {
 		availableTools = append(availableTools, gtools.New(*withCredsFile))
@@ -77,7 +79,7 @@ func main() {
 		}
 	}
 
-	server := server.New(notesDir, agentExecutor, oauthConfig)
+	server := server.New(agentExecutor, oauthConfig)
 	port := 8080
 	log.Printf("Server starting on http://localhost:%d\n", port)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), server); err != nil {

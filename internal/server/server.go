@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 
-	"groundhog/internal/notes"
 	"groundhog/internal/patterns"
 	"groundhog/internal/tools/calendar"
 
@@ -215,7 +214,7 @@ func CallendarHandler(c *calendar.Calendar) http.HandlerFunc {
 	}
 }
 
-func New(notesDir string, agentExecutor *agents.Executor, oauthConfig *oauth2.Config) http.Handler {
+func New(agentExecutor *agents.Executor, oauthConfig *oauth2.Config) http.Handler {
 	mux := http.NewServeMux()
 
 	// API to get patterns
@@ -243,7 +242,7 @@ func New(notesDir string, agentExecutor *agents.Executor, oauthConfig *oauth2.Co
 
 	// Websocket route
 	mux.HandleFunc("/ws", authMiddleware(oauthConfig, func(w http.ResponseWriter, r *http.Request) {
-		handleConnections(w, r, notesDir, agentExecutor)
+		handleConnections(w, r, agentExecutor)
 	}))
 
 	if oauthConfig != nil {
@@ -257,7 +256,7 @@ func New(notesDir string, agentExecutor *agents.Executor, oauthConfig *oauth2.Co
 	return mux
 }
 
-func handleConnections(w http.ResponseWriter, r *http.Request, notesDir string, executor *agents.Executor) {
+func handleConnections(w http.ResponseWriter, r *http.Request, executor *agents.Executor) {
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
@@ -296,14 +295,6 @@ func handleConnections(w http.ResponseWriter, r *http.Request, notesDir string, 
 			userInput = patternText
 		}
 
-		n, err := notes.GetLastNotes(notesDir, 5)
-		if err != nil {
-			ws.WriteMessage(websocket.TextMessage, []byte("Couldn't get last notes"))
-		}
-
-		// userInput += "\nNotes content: \n" + notes.PromptFormatNotes(n)
-
-		fmt.Println(n)
 		output, err := executor.Call(r.Context(), map[string]any{
 			"input": userInput,
 		})
