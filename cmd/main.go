@@ -23,12 +23,6 @@ func main() {
 	withOauth := flag.Bool("with-creds-oauth", false, "enable oauth authentication with the app")
 	flag.Parse()
 
-	if *withCredsFile == "" && !*withOauth {
-		fmt.Fprintln(os.Stderr, "Either with-creds-file or with-creds-oauth flag must be provided")
-		flag.Usage()
-		os.Exit(2)
-	}
-
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
@@ -48,10 +42,12 @@ func main() {
 		log.Fatal("Failed to initialize LLM:", err)
 	}
 
-	calendar := gtools.New(*withCredsFile)
+	calendarEnabled := *withCredsFile != "" || *withOauth
 	availableTools := []tools.Tool{
 		tools.Calculator{},
-		calendar,
+	}
+	if calendarEnabled {
+		availableTools = append(availableTools, gtools.New(*withCredsFile))
 	}
 
 	agentExecutor, _ := agent.NewAgent(llm, availableTools)

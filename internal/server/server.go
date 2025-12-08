@@ -44,12 +44,12 @@ var upgrader = websocket.Upgrader{
 }
 
 type oauthHandler struct {
-	oauthConfig     *oauth2.Config
+	oauthConfig *oauth2.Config
 }
 
 func newOauthHandler(oauth2Config *oauth2.Config) http.Handler {
 	return &oauthHandler{
-		oauthConfig:     oauth2Config,
+		oauthConfig: oauth2Config,
 	}
 }
 
@@ -97,13 +97,8 @@ func createToken(token *oauth2.Token) (string, error) {
 			Issuer:    "localhost",
 		},
 	}
-	fmt.Println(claims)
 
 	jwt_token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	j, _ := jwt_token.SignedString(hmacSecret)
-	fmt.Printf("JWT %v", j)
-	c, _ := verifyToken(j)
-	fmt.Println(c)
 	return jwt_token.SignedString(hmacSecret)
 }
 
@@ -127,34 +122,34 @@ func verifyToken(tokenStr string) (*TokenClaims, error) {
 	return nil, fmt.Errorf("invalid token")
 }
 
-func authMiddleware(oauthConfig *oauth2.Config, next http.HandlerFunc)  http.HandlerFunc {
+func authMiddleware(oauthConfig *oauth2.Config, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-			cookie, err := r.Cookie("Auth")
-			if err != nil {
-				log.Println(r.URL.Path)
-				http.Redirect(w, r, "/login", http.StatusSeeOther)
-				return
-			}
-			claims, err := verifyToken(cookie.Value)
-			if err != nil {
-				log.Println("Incorrect or expired jwt token")
-				http.Redirect(w, r, "/login", http.StatusSeeOther)
-				return
-			}
-
-			var tokenSource oauth2.TokenSource
-			if claims.OauthToken != nil {
-				if oauthConfig != nil {
-					tokenSource = oauthConfig.TokenSource(r.Context(), claims.OauthToken)
-				} else {
-					tokenSource = oauth2.StaticTokenSource(claims.OauthToken)
-				}
-			}
-			if tokenSource != nil {
-				r = r.WithContext(context.WithValue(r.Context(), "OauthTokenSource", tokenSource))
-			}
-			next(w, r)
+		cookie, err := r.Cookie("Auth")
+		if err != nil {
+			log.Println(r.URL.Path)
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
 		}
+		claims, err := verifyToken(cookie.Value)
+		if err != nil {
+			log.Println("Incorrect or expired jwt token")
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+
+		var tokenSource oauth2.TokenSource
+		if claims.OauthToken != nil {
+			if oauthConfig != nil {
+				tokenSource = oauthConfig.TokenSource(r.Context(), claims.OauthToken)
+			} else {
+				tokenSource = oauth2.StaticTokenSource(claims.OauthToken)
+			}
+		}
+		if tokenSource != nil {
+			r = r.WithContext(context.WithValue(r.Context(), "OauthTokenSource", tokenSource))
+		}
+		next(w, r)
+	}
 }
 
 func createTokenCookie(token *oauth2.Token, w http.ResponseWriter) http.Cookie {
@@ -162,13 +157,13 @@ func createTokenCookie(token *oauth2.Token, w http.ResponseWriter) http.Cookie {
 	if err != nil {
 		w.Write([]byte("Couldn't create jwt token"))
 		log.Println(err)
-		return http.Cookie{} 
+		return http.Cookie{}
 	}
 	cookie := http.Cookie{
 		Name:     "Auth",
 		Value:    t,
 		SameSite: http.SameSiteStrictMode,
-		Path: "/",
+		Path:     "/",
 	}
 	return cookie
 }
@@ -226,16 +221,18 @@ func New(notesDir string, agentExecutor *agents.Executor, oauthConfig *oauth2.Co
 	// API to get patterns
 	var calendarTool tools.Tool
 	tools := agentExecutor.Agent.GetTools()
-	for _, tool := range tools{
+	for _, tool := range tools {
 		if tool.Name() == "calendar" {
 			calendarTool = tool
 		}
 	}
-	c, ok := calendarTool.(*calendar.Calendar)
-	if !ok{
-		fmt.Println("Couldn't create calendar tool")
-	} else {
-		mux.HandleFunc("/calendar", authMiddleware(oauthConfig, CallendarHandler(c)))
+	if calendarTool != nil {
+		c, ok := calendarTool.(*calendar.Calendar)
+		if !ok {
+			fmt.Println("Couldn't create calendar tool")
+		} else {
+			mux.HandleFunc("/calendar", authMiddleware(oauthConfig, CallendarHandler(c)))
+		}
 	}
 
 	// API to get patterns
