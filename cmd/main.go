@@ -53,6 +53,7 @@ func main() {
 			availableTools,
 			gtools.New(*withCredsFile),
 			gtools.NewAddEvent(*withCredsFile),
+			gtools.NewEditEvent(*withCredsFile),
 		)
 	}
 

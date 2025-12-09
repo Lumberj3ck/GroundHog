@@ -34,7 +34,7 @@ func (c *Calendar) Name() string {
 }
 
 func (c *Calendar) Description() string {
-	return `List the user's upcoming Google Calendar events for the next 72 hours.`
+	return `List the user's upcoming Google Calendar events for the next 72 hours, including each event's id for follow-up edits.`
 }
 
 func (c *Calendar) Call(ctx context.Context, input string) (string, error) {
@@ -74,7 +74,7 @@ func (c *Calendar) Call(ctx context.Context, input string) (string, error) {
 		if start == "" {
 			start = e.Start.Date
 		}
-		result += fmt.Sprintf("%s – %s\n", start, e.Summary)
+		result += fmt.Sprintf("%s – %s (id: %s)\n", start, e.Summary, e.Id)
 	}
 	return result, nil
 }
