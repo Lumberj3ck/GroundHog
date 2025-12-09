@@ -14,6 +14,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/tmc/langchaingo/agents"
+	"github.com/tmc/langchaingo/chains"
 	"github.com/tmc/langchaingo/tools"
 
 	"golang.org/x/oauth2"
@@ -295,7 +296,8 @@ func handleConnections(w http.ResponseWriter, r *http.Request, executor *agents.
 			userInput = patternText
 		}
 
-		output, err := executor.Call(r.Context(), map[string]any{
+
+		output, err := chains.Call(context.Background(), executor, map[string]any{
 			"input": userInput,
 		})
 
