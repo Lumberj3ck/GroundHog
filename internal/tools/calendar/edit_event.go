@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -28,7 +29,7 @@ func (e *EditEvent) Name() string {
 }
 
 func (e *EditEvent) Description() string {
-	return `Edit an existing Google Calendar event. Expect a JSON string with: event_id (required), summary (optional), start_time (optional, RFC3339 or YYYY-MM-DD for all-day), end_time (optional, RFC3339), duration_minutes (optional when end_time is omitted), description (optional), location (optional), time_zone (optional IANA, e.g. "America/New_York"). Provide at least one field to update.`
+	return `Edit an existing Google Calendar event. Input can be JSON or comma-separated key=value pairs. Keys: event_id (required), summary (optional), start_time (optional, RFC3339 or YYYY-MM-DD for all-day), end_time (optional, RFC3339), duration_minutes (optional when end_time is omitted), description (optional), location (optional), time_zone (optional IANA, e.g. "America/New_York"). Provide at least one field to update.`
 }
 
 func (e *EditEvent) Call(ctx context.Context, input string) (string, error) {
@@ -123,14 +124,80 @@ type editEventInput struct {
 func parseEditEventInput(raw string) (editEventInput, error) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
-		return editEventInput{}, fmt.Errorf("provide event details as JSON in the tool input")
+		return editEventInput{}, fmt.Errorf("provide event details as JSON or comma-separated key=value pairs in the tool input")
 	}
 
 	var payload editEventInput
-	if err := json.Unmarshal([]byte(trimmed), &payload); err != nil {
-		return editEventInput{}, fmt.Errorf("invalid edit event payload; expected JSON: %w", err)
+	if err := json.Unmarshal([]byte(trimmed), &payload); err == nil {
+		return validateEditEventInput(payload)
 	}
 
+	var err error
+	payload, err = parseEditEventCSV(trimmed)
+	if err != nil {
+		return editEventInput{}, fmt.Errorf("invalid edit event payload; expected comma-separated key=value pairs or JSON: %w", err)
+	}
+
+	return validateEditEventInput(payload)
+}
+
+func parseEditEventCSV(raw string) (editEventInput, error) {
+	var payload editEventInput
+
+	parts := strings.Split(raw, ",")
+	for _, part := range parts {
+		p := strings.TrimSpace(part)
+		if p == "" {
+			continue
+		}
+
+		kv := strings.SplitN(p, "=", 2)
+		if len(kv) != 2 {
+			return editEventInput{}, fmt.Errorf("invalid segment %q; expected key=value", p)
+		}
+
+		key := strings.TrimSpace(kv[0])
+		val := strings.TrimSpace(kv[1])
+
+		switch key {
+		case "event_id":
+			payload.EventID = val
+		case "summary":
+			v := val
+			payload.Summary = &v
+		case "description":
+			v := val
+			payload.Description = &v
+		case "start_time":
+			v := val
+			payload.StartTime = &v
+		case "end_time":
+			v := val
+			payload.EndTime = &v
+		case "duration_minutes":
+			if val == "" {
+				continue
+			}
+			mins, err := strconv.Atoi(val)
+			if err != nil {
+				return editEventInput{}, fmt.Errorf("duration_minutes must be an integer: %w", err)
+			}
+			payload.DurationMinutes = &mins
+		case "time_zone":
+			v := val
+			payload.TimeZone = &v
+		case "location":
+			v := val
+			payload.Location = &v
+		default:
+			return editEventInput{}, fmt.Errorf("unknown key %q", key)
+		}
+	}
+
+	return payload, nil
+}
+
+func validateEditEventInput(payload editEventInput) (editEventInput, error) {
 	payload.EventID = strings.TrimSpace(payload.EventID)
 	if payload.EventID == "" {
 		return editEventInput{}, fmt.Errorf("event_id is required to edit an event")

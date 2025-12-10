@@ -126,14 +126,20 @@ func verifyToken(tokenStr string) (*TokenClaims, error) {
 func authMiddleware(oauthConfig *oauth2.Config, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("Auth")
+		var loginUrl string
+		if oauthConfig != nil{
+			loginUrl = "/oauth/login/"
+		} else {
+			loginUrl = "/login"
+		}
 		if err != nil {
-			http.Redirect(w, r, fmt.Sprintf("/login?next=%s", url.QueryEscape(r.URL.String())), http.StatusSeeOther)
+			http.Redirect(w, r, fmt.Sprintf("%s?next=%s", loginUrl, url.QueryEscape(r.URL.String())), http.StatusSeeOther)
 			return
 		}
 		claims, err := verifyToken(cookie.Value)
 		if err != nil {
 			log.Println("Incorrect or expired jwt token")
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			http.Redirect(w, r, loginUrl, http.StatusSeeOther)
 			return
 		}
 
@@ -162,7 +168,7 @@ func createTokenCookie(token *oauth2.Token, w http.ResponseWriter) http.Cookie {
 	cookie := http.Cookie{
 		Name:     "Auth",
 		Value:    t,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
 	}
 	return cookie
@@ -243,7 +249,9 @@ func New(agentExecutor *agents.Executor, oauthConfig *oauth2.Config) http.Handle
 	}
 
 	// API to get patterns
-	mux.HandleFunc("/login", groundhogLoginHandler)
+	if oauthConfig == nil{
+		mux.HandleFunc("/login", groundhogLoginHandler)
+	}
 
 	// API to get patterns
 	mux.HandleFunc("/patterns", handlePatterns)

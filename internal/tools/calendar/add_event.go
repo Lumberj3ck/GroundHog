@@ -177,6 +177,8 @@ func parseTime(value, timeZone string) (time.Time, bool, error) {
 		return time.Time{}, false, fmt.Errorf("time value is empty")
 	}
 
+	trimmedTZ := strings.TrimSpace(timeZone)
+
 	if t, err := time.Parse(time.RFC3339, value); err == nil {
 		return t, false, nil
 	}
@@ -186,19 +188,27 @@ func parseTime(value, timeZone string) (time.Time, bool, error) {
 	}
 
 	loc := time.Local
-	if strings.TrimSpace(timeZone) != "" {
+	if trimmedTZ != "" {
 		var err error
-		loc, err = time.LoadLocation(strings.TrimSpace(timeZone))
+		loc, err = time.LoadLocation(trimmedTZ)
 		if err != nil {
 			return time.Time{}, false, fmt.Errorf("invalid time_zone %q: %w", timeZone, err)
 		}
+	}
+
+	if t, err := time.ParseInLocation("2006-01-02T15:04:05", value, loc); err == nil {
+		return t, false, nil
+	}
+
+	if t, err := time.ParseInLocation("2006-01-02T15:04", value, loc); err == nil {
+		return t, false, nil
 	}
 
 	if t, err := time.ParseInLocation("2006-01-02 15:04", value, loc); err == nil {
 		return t, false, nil
 	}
 
-	return time.Time{}, false, fmt.Errorf("could not parse time %q; use RFC3339, YYYY-MM-DD for all-day, or YYYY-MM-DD HH:MM", value)
+	return time.Time{}, false, fmt.Errorf("could not parse time %q; use RFC3339, YYYY-MM-DD for all-day, YYYY-MM-DDTHH:MM[:SS], or YYYY-MM-DD HH:MM", value)
 }
 
 func parseAddEventCSV(raw string) (addEventInput, error) {
