@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 
 	"groundhog/internal/patterns"
@@ -126,8 +127,7 @@ func authMiddleware(oauthConfig *oauth2.Config, next http.HandlerFunc) http.Hand
 	return func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("Auth")
 		if err != nil {
-			log.Println(r.URL.Path)
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			http.Redirect(w, r, fmt.Sprintf("/login?next=%s", url.QueryEscape(r.URL.String())), http.StatusSeeOther)
 			return
 		}
 		claims, err := verifyToken(cookie.Value)
@@ -190,14 +190,21 @@ func groundhogLoginHandler(w http.ResponseWriter, r *http.Request) {
 		if subtle.ConstantTimeCompare([]byte(password[0]), []byte(master_password)) == 1 {
 			cookie := createTokenCookie(nil, w)
 			http.SetCookie(w, &cookie)
-			http.Redirect(w, r, "/", http.StatusSeeOther)
+			v := r.URL.Query().Get("next")
+
+			if v != "" {
+				fmt.Println("Redirecting")
+				http.Redirect(w, r, v, http.StatusSeeOther)
+			} else {
+				http.Redirect(w, r, "/", http.StatusSeeOther)
+			}
 		} else {
 			w.Write([]byte("Incorrect password"))
 		}
 	} else {
 		w.Header().Add("Content-Type", "text/html")
 		w.Write([]byte(`
-		<form action="/login" method="POST">
+		<form method="POST">
 		<input name="password" placeholder="provide a password"/>
 		<button type="submit">Submit</button>
 		</form>
@@ -297,7 +304,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request, executor *agents.
 		}
 
 
-		output, err := chains.Call(context.Background(), executor, map[string]any{
+		output, err := chains.Call(r.Context(), executor, map[string]any{
 			"input": userInput,
 		})
 

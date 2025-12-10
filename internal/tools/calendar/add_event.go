@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
 	"google.golang.org/api/calendar/v3"
+
+	"github.com/tmc/langchaingo/tools"
 )
 
 // AddEvent creates new events in the user's Google Calendar.
@@ -15,7 +18,7 @@ type AddEvent struct {
 	credFile string
 }
 
-var _ = AddEvent{}
+var _ tools.Tool = &AddEvent{}
 
 func NewAddEvent(credFile string) *AddEvent {
 	return &AddEvent{
@@ -28,7 +31,7 @@ func (a *AddEvent) Name() string {
 }
 
 func (a *AddEvent) Description() string {
-	return `Add a new event to the user's Google Calendar. Expect a JSON string with: summary (required), start_time (required, RFC3339 or YYYY-MM-DD for all-day), end_time (RFC3339, optional), duration_minutes (optional, used when end_time is missing), description (optional), location (optional), time_zone (optional IANA, e.g. "America/New_York"). Example: {"summary":"Team sync","start_time":"2025-12-09T10:00:00-05:00","duration_minutes":30,"description":"Discuss project status","location":"Zoom","time_zone":"America/New_York"}.`
+	return `Add a new event to the user's Google Calendar. Input should be comma-separated key=value pairs. Keys: summary (required), start_time (required, RFC3339 or YYYY-MM-DD for all-day), end_time (RFC3339, optional), duration_minutes (optional, used when end_time is missing), description (optional), location (optional), time_zone (optional IANA, e.g. "America/New_York"). Examples: summary=Team sync, start_time=2025-12-09T10:00:00-05:00, duration_minutes=30, description=Discuss project status, location=Zoom, time_zone=America/New_York.`
 }
 
 func (a *AddEvent) Call(ctx context.Context, input string) (string, error) {
@@ -118,22 +121,19 @@ type addEventInput struct {
 func parseAddEventInput(raw string) (addEventInput, error) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
-		return addEventInput{}, fmt.Errorf("provide event details as JSON in the tool input")
+		return addEventInput{}, fmt.Errorf("provide event details as JSON or comma-separated key=value pairs in the tool input")
 	}
 
 	var payload addEventInput
-	if err := json.Unmarshal([]byte(trimmed), &payload); err != nil {
-		return addEventInput{}, fmt.Errorf("invalid add event payload; expected JSON: %w", err)
+	if err := json.Unmarshal([]byte(trimmed), &payload); err == nil {
+		return validateAddEventInput(payload)
 	}
 
-	if payload.Summary == "" {
-		return addEventInput{}, fmt.Errorf("summary is required to create an event")
+	payload, err := parseAddEventCSV(trimmed)
+	if err != nil {
+		return addEventInput{}, fmt.Errorf("invalid add event payload; expected comma-separated key=value pairs or JSON: %w", err)
 	}
-	if payload.StartTime == "" {
-		return addEventInput{}, fmt.Errorf("start_time is required to create an event")
-	}
-
-	return payload, nil
+	return validateAddEventInput(payload)
 }
 
 func prepareEventTimes(in addEventInput) (time.Time, time.Time, bool, string, error) {
@@ -199,4 +199,60 @@ func parseTime(value, timeZone string) (time.Time, bool, error) {
 	}
 
 	return time.Time{}, false, fmt.Errorf("could not parse time %q; use RFC3339, YYYY-MM-DD for all-day, or YYYY-MM-DD HH:MM", value)
+}
+
+func parseAddEventCSV(raw string) (addEventInput, error) {
+	var payload addEventInput
+	parts := strings.Split(raw, ",")
+	for _, part := range parts {
+		p := strings.TrimSpace(part)
+		if p == "" {
+			continue
+		}
+
+		kv := strings.SplitN(p, "=", 2)
+		if len(kv) != 2 {
+			return addEventInput{}, fmt.Errorf("invalid segment %q; expected key=value", p)
+		}
+
+		key := strings.TrimSpace(kv[0])
+		val := strings.TrimSpace(kv[1])
+
+		switch key {
+		case "summary":
+			payload.Summary = val
+		case "description":
+			payload.Description = val
+		case "start_time":
+			payload.StartTime = val
+		case "end_time":
+			payload.EndTime = val
+		case "duration_minutes":
+			if val == "" {
+				continue
+			}
+			mins, err := strconv.Atoi(val)
+			if err != nil {
+				return addEventInput{}, fmt.Errorf("duration_minutes must be an integer: %w", err)
+			}
+			payload.DurationMinutes = mins
+		case "time_zone":
+			payload.TimeZone = val
+		case "location":
+			payload.Location = val
+		default:
+			return addEventInput{}, fmt.Errorf("unknown key %q", key)
+		}
+	}
+	return payload, nil
+}
+
+func validateAddEventInput(payload addEventInput) (addEventInput, error) {
+	if strings.TrimSpace(payload.Summary) == "" {
+		return addEventInput{}, fmt.Errorf("summary is required to create an event")
+	}
+	if strings.TrimSpace(payload.StartTime) == "" {
+		return addEventInput{}, fmt.Errorf("start_time is required to create an event")
+	}
+	return payload, nil
 }
