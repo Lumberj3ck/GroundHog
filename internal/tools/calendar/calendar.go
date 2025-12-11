@@ -37,6 +37,15 @@ func (c *Calendar) Description() string {
 	return `List the user's upcoming Google Calendar events for the next 72 hours, including each event's id for follow-up edits.`
 }
 
+func (a *Calendar) Parameters() map[string]interface{} {
+	return map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+		},
+		"required": []string{},
+	}
+}
+
 func (c *Calendar) Call(ctx context.Context, input string) (string, error) {
 	ctx = ensureContext(ctx)
 	if err := ctx.Err(); err != nil {

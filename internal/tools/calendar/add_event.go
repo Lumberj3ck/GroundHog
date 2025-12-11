@@ -53,6 +53,44 @@ Fields:
 - time_zone (string, optional): IANA name, e.g., "America/New_York". `
 }
 
+// Parameters exposes the structured schema for tool calling.
+func (a *AddEvent) Parameters() map[string]interface{} {
+	return map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"summary": map[string]interface{}{
+				"type":        "string",
+				"description": "Event title (required).",
+			},
+			"start_time": map[string]interface{}{
+				"type":        "string",
+				"description": "RFC3339 timestamp or YYYY-MM-DD for all-day events (required).",
+			},
+			"end_time": map[string]interface{}{
+				"type":        "string",
+				"description": "RFC3339 end time; omit when duration_minutes is used.",
+			},
+			"duration_minutes": map[string]interface{}{
+				"type":        "integer",
+				"description": "Length in minutes when end_time is omitted.",
+			},
+			"description": map[string]interface{}{
+				"type":        "string",
+				"description": "Optional event description.",
+			},
+			"location": map[string]interface{}{
+				"type":        "string",
+				"description": "Optional location such as Zoom link or room.",
+			},
+			"time_zone": map[string]interface{}{
+				"type":        "string",
+				"description": "IANA time zone, e.g., America/New_York.",
+			},
+		},
+		"required": []string{"summary", "start_time"},
+	}
+}
+
 func (a *AddEvent) Call(ctx context.Context, input string) (string, error) {
 	ctx = ensureContext(ctx)
 	if err := ctx.Err(); err != nil {

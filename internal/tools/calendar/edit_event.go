@@ -53,6 +53,48 @@ Fields:
 - location (string, optional)`
 }
 
+// Parameters exposes the structured schema for tool calling.
+func (e *EditEvent) Parameters() map[string]interface{} {
+	return map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"event_id": map[string]interface{}{
+				"type":        "string",
+				"description": "ID of the event to edit (required).",
+			},
+			"summary": map[string]interface{}{
+				"type":        "string",
+				"description": "New event title.",
+			},
+			"description": map[string]interface{}{
+				"type":        "string",
+				"description": "Updated description.",
+			},
+			"start_time": map[string]interface{}{
+				"type":        "string",
+				"description": "RFC3339 timestamp or YYYY-MM-DD for all-day events.",
+			},
+			"end_time": map[string]interface{}{
+				"type":        "string",
+				"description": "RFC3339 end time; omit when duration_minutes is used.",
+			},
+			"duration_minutes": map[string]interface{}{
+				"type":        "integer",
+				"description": "Length in minutes when end_time is omitted.",
+			},
+			"time_zone": map[string]interface{}{
+				"type":        "string",
+				"description": "IANA time zone applied to provided times.",
+			},
+			"location": map[string]interface{}{
+				"type":        "string",
+				"description": "Updated location (room, link, etc.).",
+			},
+		},
+		"required": []string{"event_id"},
+	}
+}
+
 func (e *EditEvent) Call(ctx context.Context, input string) (string, error) {
 	ctx = ensureContext(ctx)
 	if err := ctx.Err(); err != nil {

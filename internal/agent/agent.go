@@ -14,7 +14,7 @@ import (
 
 // NewAgent creates a new langchaingo agent that uses native tool calling so the
 // model can invoke tools like calendar or calculator without hitting tool_choice errors.
-func NewAgent(tools []langchainTools.Tool) (*agents.Executor, *agents.OpenAIFunctionsAgent) {
+func NewAgent(tools []langchainTools.Tool) (*agents.Executor) {
 	llm, err := openai.New(
 		openai.WithBaseURL("https://api.groq.com/openai/v1"),
 		openai.WithModel("openai/gpt-oss-120b"),
@@ -32,7 +32,13 @@ func NewAgent(tools []langchainTools.Tool) (*agents.Executor, *agents.OpenAIFunc
 
 	systemMessage := fmt.Sprintf(`You are the Groundhog assistant. Today is %s. Help users manage schedules and tasks using the provided tools. Default to tool use whenever information must be fetched, created, or updated instead of inventing details. Keep answers brief and actionable.  When asked to edit a calendar event, first obtain the event ID via the calendar tools (e.g., list or search) before attempting any update.`, today)
 
-	agent := agents.NewOpenAIFunctionsAgent(llm, tools, agents.NewOpenAIOption().WithExtraMessages(extraMessages), agents.NewOpenAIOption().WithSystemMessage(systemMessage))
+	baseAgent := agents.NewOpenAIFunctionsAgent(
+		llm,
+		tools,
+		agents.NewOpenAIOption().WithExtraMessages(extraMessages),
+		agents.NewOpenAIOption().WithSystemMessage(systemMessage),
+	)
+	myAgent := &MyAgent{OpenAIFunctionsAgent: baseAgent}
 
-	return agents.NewExecutor(agent, agents.WithMaxIterations(10), agents.WithMemory(memory.NewConversationBuffer())), agent
+	return agents.NewExecutor(myAgent, agents.WithMaxIterations(10), agents.WithMemory(memory.NewConversationBuffer()))
 }
