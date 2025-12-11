@@ -12,7 +12,6 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
-	"github.com/tmc/langchaingo/llms/openai"
 	"github.com/tmc/langchaingo/tools"
 
 	"golang.org/x/oauth2"
@@ -35,13 +34,6 @@ func main() {
 		log.Fatalf("Please, provide NOTES_DIR environmnet variable")
 	}
 
-	llm, err := openai.New(
-		openai.WithBaseURL("https://api.groq.com/openai/v1"),
-		openai.WithModel("openai/gpt-oss-20b"),
-	)
-	if err != nil {
-		log.Fatal("Failed to initialize LLM:", err)
-	}
 
 	calendarEnabled := *withCredsFile != "" || *withOauth
 	availableTools := []tools.Tool{
@@ -57,7 +49,7 @@ func main() {
 		)
 	}
 
-	agentExecutor, _ := agent.NewAgent(llm, availableTools)
+	agentExecutor, _ := agent.NewAgent(availableTools)
 
 	var oauthConfig *oauth2.Config
 	if *withOauth {

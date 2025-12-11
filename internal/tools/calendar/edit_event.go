@@ -29,7 +29,7 @@ func (e *EditEvent) Name() string {
 }
 
 func (e *EditEvent) Description() string {
-	return `Edit an existing Google Calendar event. Input can be JSON or comma-separated key=value pairs. Keys: event_id (required), summary (optional), start_time (optional, RFC3339 or YYYY-MM-DD for all-day), end_time (optional, RFC3339), duration_minutes (optional when end_time is omitted), description (optional), location (optional), time_zone (optional IANA, e.g. "America/New_York"). Provide at least one field to update.`
+	return `Edit an existing Google Calendar event. Input is comma-separated key=value pairs. Keys: event_id (required), summary (optional), start_time (optional, RFC3339 or YYYY-MM-DD for all-day), end_time (optional, RFC3339), duration_minutes (optional when end_time is omitted), description (optional), location (optional), time_zone (optional IANA, e.g. "America/New_York"). Provide at least one field to update.`
 }
 
 func (e *EditEvent) Call(ctx context.Context, input string) (string, error) {
