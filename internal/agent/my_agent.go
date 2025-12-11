@@ -21,12 +21,12 @@ type parameterizedTool interface {
 	Parameters() map[string]interface{}
 }
 
-// MyAgent wraps the OpenAIFunctionsAgent to customize tool schemas and parsing.
-type MyAgent struct {
+// OpenAIParametriesedFunctionsAgent wraps the OpenAIFunctionsAgent to customize tool schemas and parsing.
+type OpenAIParametriesedFunctionsAgent struct {
 	*agents.OpenAIFunctionsAgent
 }
 
-func (o *MyAgent) functions() []llms.FunctionDefinition {
+func (o *OpenAIParametriesedFunctionsAgent) functions() []llms.FunctionDefinition {
 	res := make([]llms.FunctionDefinition, 0, len(o.Tools))
 	for _, tool := range o.Tools {
 		params := defaultFunctionParameters()
@@ -44,7 +44,7 @@ func (o *MyAgent) functions() []llms.FunctionDefinition {
 	return res
 }
 
-func (o *MyAgent) Plan(
+func (o *OpenAIParametriesedFunctionsAgent) Plan(
 	ctx context.Context,
 	intermediateSteps []schema.AgentStep,
 	inputs map[string]string,
@@ -130,7 +130,9 @@ func (o *MyAgent) Plan(
 
 	result, err := o.LLM.GenerateContent(ctx, mcList, llmOptions...)
 	if result != nil {
-		fmt.Println("Generated ouput from llm: ", result.Choices[0])
+		if result.Choices[0].FuncCall != nil{
+		fmt.Println("Generated ouput from llm: ", result.Choices[0].FuncCall.Name)
+		}
 	}
 	if err != nil {
 		return nil, nil, err
@@ -139,7 +141,7 @@ func (o *MyAgent) Plan(
 	return o.ParseOutput(result)
 }
 
-func (o *MyAgent) ParseOutput(contentResp *llms.ContentResponse) (
+func (o *OpenAIParametriesedFunctionsAgent) ParseOutput(contentResp *llms.ContentResponse) (
 	[]schema.AgentAction, *schema.AgentFinish, error,
 ) {
 	if contentResp == nil || len(contentResp.Choices) == 0 {
@@ -200,7 +202,7 @@ func (o *MyAgent) ParseOutput(contentResp *llms.ContentResponse) (
 	}, nil
 }
 
-func (o *MyAgent) constructScratchPad(steps []schema.AgentStep) []llms.ChatMessage {
+func (o *OpenAIParametriesedFunctionsAgent) constructScratchPad(steps []schema.AgentStep) []llms.ChatMessage {
 	if len(steps) == 0 {
 		return nil
 	}

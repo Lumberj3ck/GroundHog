@@ -49,7 +49,7 @@ func main() {
 		)
 	}
 
-	agentExecutor, _ := agent.NewAgent(availableTools)
+	agentExecutor := agent.NewAgent(availableTools)
 
 	var oauthConfig *oauth2.Config
 	if *withOauth {

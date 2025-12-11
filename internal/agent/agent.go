@@ -17,7 +17,7 @@ import (
 func NewAgent(tools []langchainTools.Tool) (*agents.Executor) {
 	llm, err := openai.New(
 		openai.WithBaseURL("https://api.groq.com/openai/v1"),
-		openai.WithModel("openai/gpt-oss-120b"),
+		openai.WithModel("openai/gpt-oss-20b"),
 	)
 	if err != nil {
 		log.Fatal("Failed to initialize LLM:", err)
@@ -38,7 +38,6 @@ func NewAgent(tools []langchainTools.Tool) (*agents.Executor) {
 		agents.NewOpenAIOption().WithExtraMessages(extraMessages),
 		agents.NewOpenAIOption().WithSystemMessage(systemMessage),
 	)
-	myAgent := &MyAgent{OpenAIFunctionsAgent: baseAgent}
-
+	myAgent := &OpenAIParametriesedFunctionsAgent{OpenAIFunctionsAgent: baseAgent}
 	return agents.NewExecutor(myAgent, agents.WithMaxIterations(10), agents.WithMemory(memory.NewConversationBuffer()))
 }
