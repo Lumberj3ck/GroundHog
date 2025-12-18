@@ -7,7 +7,6 @@ import (
 
 	"github.com/tmc/langchaingo/agents"
 	"github.com/tmc/langchaingo/llms/openai"
-	"github.com/tmc/langchaingo/memory"
 	"github.com/tmc/langchaingo/prompts"
 	langchainTools "github.com/tmc/langchaingo/tools"
 )
@@ -39,5 +38,5 @@ func NewAgent(tools []langchainTools.Tool) (*agents.Executor) {
 		agents.NewOpenAIOption().WithSystemMessage(systemMessage),
 	)
 	myAgent := &OpenAIParametriesedFunctionsAgent{OpenAIFunctionsAgent: baseAgent}
-	return agents.NewExecutor(myAgent, agents.WithMaxIterations(10), agents.WithMemory(memory.NewConversationBuffer()))
+	return agents.NewExecutor(myAgent, agents.WithMaxIterations(10))
 }

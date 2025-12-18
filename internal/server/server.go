@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/tmc/langchaingo/agents"
 	"github.com/tmc/langchaingo/chains"
+	"github.com/tmc/langchaingo/memory"
 	"github.com/tmc/langchaingo/tools"
 
 	"golang.org/x/oauth2"
@@ -278,6 +279,8 @@ func handleConnections(w http.ResponseWriter, r *http.Request, executor *agents.
 		log.Println(err)
 		return
 	}
+	executor.Memory = memory.NewConversationBuffer()
+
 	defer ws.Close()
 
 	log.Println("Client connected")
