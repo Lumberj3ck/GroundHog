@@ -131,7 +131,7 @@ func (o *OpenAIParametriesedFunctionsAgent) Plan(
 	result, err := o.LLM.GenerateContent(ctx, mcList, llmOptions...)
 	if result != nil {
 		if result.Choices[0].FuncCall != nil{
-		fmt.Println("Generated ouput from llm: ", result.Choices[0].FuncCall.Name)
+		fmt.Println("Generated ouput from llm: ", result.Choices[0].FuncCall.Name, result.Choices[0].FuncCall.Arguments)
 		}
 	}
 	if err != nil {
