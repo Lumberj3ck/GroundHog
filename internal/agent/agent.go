@@ -28,10 +28,9 @@ func NewAgent(tools []langchainTools.Tool) (*agents.Executor) {
 	}
 
 	tn := time.Now()
-	today := tn.Format("Monday Jan 2, 2006")
-	zone, _ := tn.Zone()
+	now := tn.Format(time.RFC822)
 
-	systemMessage := fmt.Sprintf(`You are the Groundhog assistant. Today is %s, timezone is %s. Help users manage schedules and tasks using the provided tools. Default to tool use whenever information must be fetched, created, or updated instead of inventing details. Keep answers brief and actionable.  When asked to edit a calendar event, first obtain the event ID via the calendar tools (e.g., list or search) before attempting any update.`, today, zone)
+	systemMessage := fmt.Sprintf(`You are the Groundhog assistant. Current date and time is %s. Help users manage schedules and tasks using the provided tools. Default to tool use whenever information must be fetched, created, or updated instead of inventing details. Keep answers brief and actionable.  When asked to edit a calendar event, first obtain the event ID via the calendar tools (e.g., list or search) before attempting any update.`, now)
 
 	baseAgent := agents.NewOpenAIFunctionsAgent(
 		llm,

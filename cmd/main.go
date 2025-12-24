@@ -7,6 +7,7 @@ import (
 	"groundhog/internal/notes"
 	"groundhog/internal/server"
 	gtools "groundhog/internal/tools/calendar"
+	gtasks "groundhog/internal/tools/tasks"
 	"log"
 	"net/http"
 	"os"
@@ -34,7 +35,6 @@ func main() {
 		log.Fatalf("Please, provide NOTES_DIR environmnet variable")
 	}
 
-
 	calendarEnabled := *withCredsFile != "" || *withOauth
 	availableTools := []tools.Tool{
 		tools.Calculator{},
@@ -46,6 +46,8 @@ func main() {
 			gtools.New(*withCredsFile),
 			gtools.NewAddEvent(*withCredsFile),
 			gtools.NewEditEvent(*withCredsFile),
+			gtasks.NewListTasks(*withCredsFile),
+			gtasks.NewAddTask(*withCredsFile),
 		)
 	}
 
@@ -71,6 +73,7 @@ func main() {
 			RedirectURL:  googleRedirectUrl,
 			Scopes: []string{
 				"https://www.googleapis.com/auth/calendar",
+				"https://www.googleapis.com/auth/tasks",
 			},
 			Endpoint: google.Endpoint,
 		}

@@ -12,6 +12,7 @@ import (
 
 	"groundhog/internal/patterns"
 	"groundhog/internal/tools/calendar"
+	"groundhog/internal/tools/tasks"
 
 	"github.com/gorilla/websocket"
 	"github.com/tmc/langchaingo/agents"
@@ -219,7 +220,7 @@ func groundhogLoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func CallendarHandler(c *calendar.Calendar) http.HandlerFunc {
+func CallendarHandler(c tools.Tool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		resp, err := c.Call(r.Context(), "")
 		if err != nil {
@@ -234,13 +235,24 @@ func New(agentExecutor *agents.Executor, oauthConfig *oauth2.Config) http.Handle
 
 	// API to get patterns
 	var calendarTool tools.Tool
+	var tasksTool tools.Tool
 	tools := agentExecutor.Agent.GetTools()
 	for _, tool := range tools {
 		if tool.Name() == "calendar" {
 			calendarTool = tool
 		}
+		if tool.Name() == "tasks" {
+			tasksTool = tool
+		}
 	}
 	if calendarTool != nil {
+		t, ok := tasksTool.(*tasks.ListTasks)
+		if !ok {
+			fmt.Println("Couldn't create tasks tool")
+		} else {
+			mux.HandleFunc("/tasks", authMiddleware(oauthConfig, CallendarHandler(t)))
+		}
+
 		c, ok := calendarTool.(*calendar.Calendar)
 		if !ok {
 			fmt.Println("Couldn't create calendar tool")

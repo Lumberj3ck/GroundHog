@@ -101,13 +101,13 @@ func parseAmount(input string) int {
 
 func PromptFormatNotes(notes []DateFile) string {
 	prompt := ""
-	for i, note := range notes {
+	for _, note := range notes {
 		c, err := os.ReadFile(note.FilePath)
 		if err != nil {
 			log.Println("Couldn't read note file")
 			continue
 		}
-		prompt += fmt.Sprintf("\nNote %d (%s)\n", i+1, note.Time.Format(time.DateOnly))
+		prompt += fmt.Sprintf("\nNote %s:\n", note.Time.Format(time.DateOnly))
 		prompt += string(c) + "\n"
 	}
 	return prompt
