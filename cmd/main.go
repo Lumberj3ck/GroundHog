@@ -43,7 +43,7 @@ func main() {
 	if calendarEnabled {
 		availableTools = append(
 			availableTools,
-			gtools.New(*withCredsFile),
+			gtools.NewListEvent(*withCredsFile),
 			gtools.NewAddEvent(*withCredsFile),
 			gtools.NewEditEvent(*withCredsFile),
 			gtasks.NewListTasks(*withCredsFile),

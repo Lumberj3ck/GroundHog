@@ -23,7 +23,7 @@ var (
 	_ tools.Tool = &Calendar{}
 )
 
-func New(credFile string) *Calendar {
+func NewListEvent(credFile string) *Calendar {
 	return &Calendar{
 		credFile: credFile,
 	}
