@@ -51,10 +51,8 @@ func (t *Tool) Name() string {
 }
 
 func (t *Tool) Description() string {
-	return fmt.Sprintf(
-		"Fetch the most recent dated notes from the user's notes directory (default: %d). Optionally pass an integer in the input to choose how many notes to return.",
-		t.maxEntries,
-	)
+	return `Fetch the most recent dated notes from the user's notes directory. Pass an integer in the input to choose how many notes to return.`
+
 }
 
 func (t *Tool) Call(ctx context.Context, input string) (string, error) {

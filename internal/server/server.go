@@ -95,7 +95,7 @@ func createToken(token *oauth2.Token) (string, error) {
 	claims := TokenClaims{
 		OauthToken: token,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(2 * time.Hour)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(3 * 24 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			Issuer:    "localhost",
 		},
