@@ -129,7 +129,7 @@ func authMiddleware(oauthConfig *oauth2.Config, next http.HandlerFunc) http.Hand
 	return func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("Auth")
 		var loginUrl string
-		if oauthConfig != nil{
+		if oauthConfig != nil {
 			loginUrl = "/oauth/login/"
 		} else {
 			loginUrl = "/login"
@@ -262,7 +262,7 @@ func New(agentExecutor *agents.Executor, oauthConfig *oauth2.Config) http.Handle
 	}
 
 	// API to get patterns
-	if oauthConfig == nil{
+	if oauthConfig == nil {
 		mux.HandleFunc("/login", groundhogLoginHandler)
 	}
 
@@ -313,7 +313,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request, executor *agents.
 		}
 
 		memory, err := executor.Memory.LoadMemoryVariables(context.Background(), map[string]any{})
-		if err != nil{
+		if err != nil {
 			if writeErr := ws.WriteMessage(websocket.TextMessage, []byte("Sorry, I encountered an error.")); writeErr != nil {
 				log.Println("Write error:", writeErr)
 			}
@@ -322,7 +322,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request, executor *agents.
 
 		memoryKey := executor.Memory.GetMemoryKey(context.Background())
 		firstMessage := memory[memoryKey] == ""
-		if !firstMessage && msg.Message == ""{
+		if !firstMessage && msg.Message == "" {
 			if writeErr := ws.WriteMessage(websocket.TextMessage, []byte("Please provide some message text")); writeErr != nil {
 				log.Println("Write error:", writeErr)
 			}
@@ -331,7 +331,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request, executor *agents.
 
 		fmt.Println(firstMessage, memory[memoryKey])
 		var userInput string
-		if firstMessage && msg.Pattern != patterns.DefaultPattern{
+		if firstMessage && msg.Pattern != patterns.DefaultPattern {
 			patternText, ok := patterns.AllPatterns[msg.Pattern]
 			if !ok {
 				log.Println("Invalid pattern received:", msg.Pattern)
@@ -343,7 +343,6 @@ func handleConnections(w http.ResponseWriter, r *http.Request, executor *agents.
 			userInput += msg.Message
 		}
 		fmt.Println(userInput)
-
 
 		output, err := chains.Call(r.Context(), executor, map[string]any{
 			"input": userInput,

@@ -39,10 +39,9 @@ func (c *Calendar) Description() string {
 
 func (a *Calendar) Parameters() map[string]interface{} {
 	return map[string]interface{}{
-		"type": "object",
-		"properties": map[string]interface{}{
-		},
-		"required": []string{},
+		"type":       "object",
+		"properties": map[string]interface{}{},
+		"required":   []string{},
 	}
 }
 

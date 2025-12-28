@@ -13,7 +13,7 @@ import (
 
 // NewAgent creates a new langchaingo agent that uses native tool calling so the
 // model can invoke tools like calendar or calculator without hitting tool_choice errors.
-func NewAgent(tools []langchainTools.Tool) (*agents.Executor) {
+func NewAgent(tools []langchainTools.Tool) *agents.Executor {
 	llm, err := openai.New(
 		openai.WithBaseURL("https://api.groq.com/openai/v1"),
 		openai.WithModel("openai/gpt-oss-20b"),
@@ -30,7 +30,7 @@ func NewAgent(tools []langchainTools.Tool) (*agents.Executor) {
 	tn := time.Now()
 	now := tn.Format(time.RFC822)
 
-	systemMessage := fmt.Sprintf(`You are the Groundhog assistant. Current date and time is %s. Help users manage schedules and tasks using the provided tools. Default to tool use whenever information must be fetched, created, or updated instead of inventing details. Keep answers brief and actionable.  When asked to edit a calendar event, first obtain the event ID via the calendar list tool before attempting any update. When asked to add calendar event, first check that given event doesn't exists already in calendar`, now)
+	systemMessage := fmt.Sprintf(`You are the Groundhog assistant. Current date and time is %s. Help users manage schedules and tasks using the provided tools. Default to tool use whenever information must be fetched, created, or updated instead of inventing details. Keep answers brief and actionable.  When asked to edit a calendar event, first obtain the event ID via the calendar list tool before attempting any update. `, now)
 
 	baseAgent := agents.NewOpenAIFunctionsAgent(
 		llm,

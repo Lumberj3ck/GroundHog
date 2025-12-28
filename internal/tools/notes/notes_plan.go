@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tmc/langchaingo/llms"
+	"github.com/tmc/langchaingo/llms/ollama"
 	"github.com/tmc/langchaingo/tools"
 )
 
@@ -20,7 +22,7 @@ type DateFile struct {
 	Time     time.Time
 }
 
-const defaultMaxNotes = 5
+const defaultMaxNotes = 10
 
 var (
 	datePattern   = regexp.MustCompile(`\d{4}-\d{2}-\d{2}`)
@@ -36,7 +38,7 @@ type Tool struct {
 var _ tools.Tool = (*Tool)(nil)
 
 // NewTool returns a notes tool configured with the notes directory and a sensible default limit.
-func NewTool(notesDir string, maxEntries int) *Tool {
+func NewNotesPlanner(notesDir string, maxEntries int) *Tool {
 	if maxEntries <= 0 {
 		maxEntries = defaultMaxNotes
 	}
@@ -47,11 +49,11 @@ func NewTool(notesDir string, maxEntries int) *Tool {
 }
 
 func (t *Tool) Name() string {
-	return "notes"
+	return "NotesBasedPlanner"
 }
 
 func (t *Tool) Description() string {
-	return `Fetch the most recent dated notes from the user's notes directory. Pass an integer in the input to choose how many notes to return.`
+	return `Fetches the most recent dated notes from the user's notes directory and proposes plan based on notes content, this plan is built using "including" strategy. Input to this tool is amount of notes to create a plan on.`
 
 }
 
@@ -76,7 +78,20 @@ func (t *Tool) Call(ctx context.Context, input string) (string, error) {
 		return "No notes found.", nil
 	}
 
-	return PromptFormatNotes(recentNotes), nil
+	llm, err := ollama.New(ollama.WithModel("deepseek-r1:14b"))
+	if err != nil {
+		return "Initialisation of llm failed", err
+	}
+
+	notesContent := PromptFormatNotes(recentNotes)
+	fmt.Printf("Notes content %q \n ", notesContent)
+
+	output, err := llms.GenerateFromSinglePrompt(ctx, llm, `Read notes provided below. Analyse them, based on your analysis, create a plan of my tommorow day, using all information mentioned in notes, your goal is to make me not forget about what I have writen and just propose. Your losung while creating this plan is: "It is easier to appologies for  extra, then not bringing up something which might have been usefull. \n`+notesContent)
+	if err != nil {
+		return "Plan, generation is failed", err
+	}
+
+	return output, nil
 }
 
 func parseAmount(input string) int {

@@ -4,9 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"groundhog/internal/agent"
-	"groundhog/internal/notes"
 	"groundhog/internal/server"
 	gtools "groundhog/internal/tools/calendar"
+	"groundhog/internal/tools/notes"
 	gtasks "groundhog/internal/tools/tasks"
 	"log"
 	"net/http"
@@ -38,7 +38,7 @@ func main() {
 	calendarEnabled := *withCredsFile != "" || *withOauth
 	availableTools := []tools.Tool{
 		tools.Calculator{},
-		notes.NewTool(notesDir, 5),
+		notes.NewNotesPlanner(notesDir, 5),
 	}
 	if calendarEnabled {
 		availableTools = append(
