@@ -8,6 +8,8 @@ import (
 	gtools "groundhog/internal/tools/calendar"
 	"groundhog/internal/tools/notes"
 	gtasks "groundhog/internal/tools/tasks"
+
+
 	"log"
 	"net/http"
 	"os"
@@ -15,13 +17,20 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/tmc/langchaingo/tools"
 
+	tea "github.com/charmbracelet/bubbletea"
+
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+
 )
 
 func main() {
 	withCredsFile := flag.String("with-creds-file", "", "filename with json creds of the service acount")
+
 	withOauth := flag.Bool("with-creds-oauth", false, "enable oauth authentication with the app")
+
+	serve_tui := flag.Bool("serve-tui", false, "serve web ui")
+
 	flag.Parse()
 
 	err := godotenv.Load()
@@ -79,10 +88,27 @@ func main() {
 		}
 	}
 
-	server := server.New(agentExecutor, oauthConfig)
-	port := 8080
-	log.Printf("Server starting on http://localhost:%d\n", port)
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), server); err != nil {
-		log.Fatal("ListenAndServe: ", err)
+	if !*serve_tui{
+		server := server.New(agentExecutor, oauthConfig)
+		port := 8080
+		log.Printf("Server starting on http://localhost:%d\n", port)
+		if err := http.ListenAndServe(fmt.Sprintf(":%d", port), server); err != nil {
+			log.Fatal("ListenAndServe: ", err)
+		}
+	} else {
+		if len(os.Getenv("DEBUG")) > 0{
+			f, err := tea.LogToFile("debug.log", "debug")
+			if err != nil {
+				fmt.Println("fatal:", err)
+				os.Exit(1)
+			}
+			defer f.Close()
+		}
+
+		p := tea.NewProgram(initialModel(agentExecutor))
+		if _, err := p.Run(); err != nil {
+			fmt.Printf("Alas, there's been an error: %v", err)
+			os.Exit(1)
+		}
 	}
 }
