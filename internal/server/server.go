@@ -68,6 +68,8 @@ func (o *oauthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		o.handleLogin(w, r)
 	case "/oauth/oauth2callback/":
 		o.handleCallback(w, r)
+	case "/oauth/success/":
+		http.ServeFile(w, r, "success.html")
 	default:
 		http.NotFound(w, r)
 	}
@@ -103,7 +105,7 @@ func (o *oauthHandler) handleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return 
 	} else {
-		http.ServeFile(w, r, "success.html")
+		http.Redirect(w, r, "/oauth/success/", http.StatusSeeOther)
 	}
 }
 
