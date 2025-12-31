@@ -48,11 +48,17 @@ var upgrader = websocket.Upgrader{
 
 type oauthHandler struct {
 	oauthConfig *oauth2.Config
+	createCookie bool
+	redirectSuccess bool
+	msgChan chan *oauth2.Token
 }
 
-func newOauthHandler(oauth2Config *oauth2.Config) http.Handler {
+func NewOauthHandler(oauth2Config *oauth2.Config, createCookie bool, redirectSuccess bool, msgChan chan *oauth2.Token) http.Handler {
 	return &oauthHandler{
 		oauthConfig: oauth2Config,
+		createCookie: createCookie,
+		redirectSuccess: redirectSuccess,
+		msgChan: msgChan,
 	}
 }
 
@@ -86,9 +92,19 @@ func (o *oauthHandler) handleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cookie := createTokenCookie(token, w)
-	http.SetCookie(w, &cookie)
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	if o.msgChan != nil{
+		o.msgChan <- token
+	}
+	if o.createCookie{
+		cookie := createTokenCookie(token, w)
+		http.SetCookie(w, &cookie)
+	}
+	if o.redirectSuccess{
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return 
+	} else {
+		http.ServeFile(w, r, "success.html")
+	}
 }
 
 func createToken(token *oauth2.Token) (string, error) {
@@ -275,7 +291,7 @@ func New(agentExecutor *agents.Executor, oauthConfig *oauth2.Config) http.Handle
 	}))
 
 	if oauthConfig != nil {
-		mux.Handle("/oauth/", newOauthHandler(oauthConfig))
+		mux.Handle("/oauth/", NewOauthHandler(oauthConfig, true, true, nil))
 	}
 
 	mux.HandleFunc("/", authMiddleware(oauthConfig, func(w http.ResponseWriter, r *http.Request) {

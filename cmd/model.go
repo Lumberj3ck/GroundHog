@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os/exec"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textarea"
@@ -16,6 +17,7 @@ import (
 	"github.com/tmc/langchaingo/agents"
 	"github.com/tmc/langchaingo/chains"
 	"github.com/tmc/langchaingo/memory"
+	"golang.org/x/oauth2"
 )
 
 const gap = "\n\n"
@@ -24,16 +26,24 @@ type (
 	errMsg error
 )
 
+type authenticator struct{}
+
+func (a authenticator) LoggedIn() bool{
+	return false
+}
+
 type model struct {
 	viewport    viewport.Model
 	textarea    textarea.Model
 	executor 	*agents.Executor
+	authenticator  authenticator
+	msgChan     chan *oauth2.Token
 	messages    []string
 	senderStyle lipgloss.Style
 	err         error
 }
 
-func initialModel(executor *agents.Executor) model {
+func initialModel(executor *agents.Executor, msgChan chan *oauth2.Token) model {
 	ta := textarea.New()
 	ta.Placeholder = "Send a message..."
 	ta.Focus()
@@ -59,15 +69,33 @@ Type a message and press Enter to send.`)
 		textarea:    ta,
 		messages:    []string{},
 		executor: 	 executor, 
+		authenticator: authenticator{},
+		msgChan: msgChan,
 		viewport:    vp,
 		senderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("5")),
 		err:         nil,
 	}
 }
 
+func receiveOauthToken(m model) tea.Cmd{
+	return func() tea.Msg{
+		log.Println("Waiting for token")
+		token := <-m.msgChan
+		log.Println("Received token ", token)
+		return ""
+	}
+}
+
 func (m model) Init() tea.Cmd {
+	var authCmd tea.Cmd
+	if !m.authenticator.LoggedIn(){
+		log.Println("hello")
+		exec.Command("xdg-open", "http://localhost:8080/oauth/login/").Start()
+		authCmd = receiveOauthToken(m) 
+	}
+
 	m.executor.Memory = memory.NewConversationBuffer() 
-	return textarea.Blink
+	return tea.Batch(textarea.Blink, authCmd)
 }
 
 type AiResponseMsg string

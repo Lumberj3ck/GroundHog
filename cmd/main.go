@@ -9,7 +9,6 @@ import (
 	"groundhog/internal/tools/notes"
 	gtasks "groundhog/internal/tools/tasks"
 
-
 	"log"
 	"net/http"
 	"os"
@@ -21,7 +20,6 @@ import (
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
-
 )
 
 func main() {
@@ -105,7 +103,19 @@ func main() {
 			defer f.Close()
 		}
 
-		p := tea.NewProgram(initialModel(agentExecutor))
+
+		msgChan := make(chan *oauth2.Token, 1)
+		go func(){
+			oauthHandler := server.NewOauthHandler(oauthConfig, false, false, msgChan)
+			http.Handle("/oauth/", oauthHandler)
+			port := 8080
+			log.Printf("Server starting on http://localhost:%d\n", port)
+			if err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
+				log.Fatal("ListenAndServe: ", err)
+			}
+		}()
+
+		p := tea.NewProgram(initialModel(agentExecutor, msgChan))
 		if _, err := p.Run(); err != nil {
 			fmt.Printf("Alas, there's been an error: %v", err)
 			os.Exit(1)
