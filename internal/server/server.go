@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -219,7 +220,7 @@ func groundhogLoginHandler(w http.ResponseWriter, r *http.Request) {
 			v := r.URL.Query().Get("next")
 
 			if v != "" {
-				fmt.Println("Redirecting")
+				slog.Debug("Redirecting", "next", v)
 				http.Redirect(w, r, v, http.StatusSeeOther)
 			} else {
 				http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -266,14 +267,14 @@ func New(agentExecutor *agents.Executor, oauthConfig *oauth2.Config) http.Handle
 	if calendarTool != nil {
 		t, ok := tasksTool.(*tasks.ListTasks)
 		if !ok {
-			fmt.Println("Couldn't create tasks tool")
+			slog.Warn("Couldn't create tasks tool")
 		} else {
 			mux.HandleFunc("/tasks", authMiddleware(oauthConfig, CallendarHandler(t)))
 		}
 
 		c, ok := calendarTool.(*calendar.Calendar)
 		if !ok {
-			fmt.Println("Couldn't create calendar tool")
+			slog.Warn("Couldn't create calendar tool")
 		} else {
 			mux.HandleFunc("/calendar", authMiddleware(oauthConfig, CallendarHandler(c)))
 		}
@@ -313,7 +314,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request, executor *agents.
 
 	defer ws.Close()
 
-	log.Println("Client connected")
+	slog.Info("Client connected")
 
 	for {
 		// Read message from browser
@@ -347,7 +348,6 @@ func handleConnections(w http.ResponseWriter, r *http.Request, executor *agents.
 			continue
 		}
 
-		fmt.Println(firstMessage, memory[memoryKey])
 		var userInput string
 		if firstMessage && msg.Pattern != patterns.DefaultPattern {
 			patternText, ok := patterns.AllPatterns[msg.Pattern]
@@ -360,7 +360,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request, executor *agents.
 		} else {
 			userInput += msg.Message
 		}
-		fmt.Println(userInput)
+		slog.Info("User input: " , "userinput", userInput)
 
 		output, err := chains.Call(r.Context(), executor, map[string]any{
 			"input": userInput,

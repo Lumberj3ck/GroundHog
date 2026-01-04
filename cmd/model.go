@@ -5,9 +5,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
+	"log/slog"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textarea"
@@ -26,10 +30,66 @@ type (
 	errMsg error
 )
 
-type authenticator struct{}
+const CONF_DIR = ".groundhog"
+const CREDS_FILE = "oauth_creds.json"
+
+type authenticator struct{ }
+
 
 func (a authenticator) LoggedIn() bool{
-	return false
+	home, err := os.UserHomeDir()
+	if err != nil{
+		log.Printf("Error finding home dir: %v", err)
+		return false
+	}
+	fp := filepath.Join(home, CONF_DIR, CREDS_FILE)
+
+	file, err := os.Open(fp)
+
+	if err != nil{
+		log.Printf("Error openning file: %v", err)
+		return false
+	}
+
+	var token oauth2.Token
+	decoder := json.NewDecoder(file)
+	decoder.Decode(&token)
+
+	ts := oauth2.StaticTokenSource(&token)
+
+	_, err = ts.Token()
+	if err != nil{
+		return false
+	}
+	return true	
+}
+
+func (a authenticator) SaveToken(token *oauth2.Token) error {
+	home, err := os.UserHomeDir()
+	if err != nil{
+		return fmt.Errorf("Error finding home dir: %v", err)
+	}
+
+	dir := filepath.Join(home, CONF_DIR)
+
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("cannot create config directory: %v", err)
+	}
+
+	fp := filepath.Join(dir, CREDS_FILE)
+	file, err := os.OpenFile(fp, os.O_WRONLY | os.O_CREATE, 0644)
+	
+	if err != nil{
+		return fmt.Errorf("Error openning file: %v", err)
+	}
+
+	encoder := json.NewEncoder(file)
+	err = encoder.Encode(token)
+
+	if err != nil{
+		return fmt.Errorf("Error encoding auth token: %v", strings.ToLower(err.Error()))
+	}
+	return nil
 }
 
 type model struct {
@@ -81,6 +141,10 @@ func receiveOauthToken(m model) tea.Cmd{
 	return func() tea.Msg{
 		log.Println("Waiting for token")
 		token := <-m.msgChan
+		err := m.authenticator.SaveToken(token)
+		if err != nil{
+			log.Printf("Error saving token %v \n", err)
+		}
 		log.Println("Received token ", token)
 		return ""
 	}
@@ -153,7 +217,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyCtrlC, tea.KeyEsc:
-			fmt.Println(m.textarea.Value())
+			slog.Debug(m.textarea.Value())
 			return m, tea.Quit
 		case tea.KeyEnter:
 			tm := m.textarea.Value()

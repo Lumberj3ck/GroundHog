@@ -8,6 +8,7 @@ import (
 	gtools "groundhog/internal/tools/calendar"
 	"groundhog/internal/tools/notes"
 	gtasks "groundhog/internal/tools/tasks"
+	"log/slog"
 
 	"log"
 	"net/http"
@@ -89,19 +90,18 @@ func main() {
 	if !*serve_tui{
 		server := server.New(agentExecutor, oauthConfig)
 		port := 8080
-		log.Printf("Server starting on http://localhost:%d\n", port)
+		slog.Info("Server starting ", "port", port)
+
 		if err := http.ListenAndServe(fmt.Sprintf(":%d", port), server); err != nil {
 			log.Fatal("ListenAndServe: ", err)
 		}
 	} else {
-		if len(os.Getenv("DEBUG")) > 0{
-			f, err := tea.LogToFile("debug.log", "debug")
-			if err != nil {
-				fmt.Println("fatal:", err)
-				os.Exit(1)
-			}
-			defer f.Close()
+		f, err := tea.LogToFile("debug.log", "")
+		if err != nil {
+			slog.Error("Couldn't log to file ", "error", err)
+			os.Exit(1)
 		}
+		defer f.Close()
 
 
 		msgChan := make(chan *oauth2.Token, 1)

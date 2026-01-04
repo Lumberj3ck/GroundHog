@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/tmc/langchaingo/agents"
@@ -131,7 +132,7 @@ func (o *OpenAIParametriesedFunctionsAgent) Plan(
 	result, err := o.LLM.GenerateContent(ctx, mcList, llmOptions...)
 	if result != nil {
 		if result.Choices[0].FuncCall != nil {
-			fmt.Println("Generated ouput from llm: ", result.Choices[0].FuncCall.Name, result.Choices[0].FuncCall.Arguments)
+			slog.Info("Generated ouput from llm: ", "funcCallName", result.Choices[0].FuncCall.Name,  "funcCallArguments", result.Choices[0].FuncCall.Arguments)
 		}
 	}
 	if err != nil {
