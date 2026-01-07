@@ -48,18 +48,18 @@ var upgrader = websocket.Upgrader{
 }
 
 type oauthHandler struct {
-	oauthConfig *oauth2.Config
-	createCookie bool
+	oauthConfig     *oauth2.Config
+	createCookie    bool
 	redirectSuccess bool
-	msgChan chan *oauth2.Token
+	msgChan         chan *oauth2.Token
 }
 
 func NewOauthHandler(oauth2Config *oauth2.Config, createCookie bool, redirectSuccess bool, msgChan chan *oauth2.Token) http.Handler {
 	return &oauthHandler{
-		oauthConfig: oauth2Config,
-		createCookie: createCookie,
+		oauthConfig:     oauth2Config,
+		createCookie:    createCookie,
 		redirectSuccess: redirectSuccess,
-		msgChan: msgChan,
+		msgChan:         msgChan,
 	}
 }
 
@@ -95,16 +95,16 @@ func (o *oauthHandler) handleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if o.msgChan != nil{
+	if o.msgChan != nil {
 		o.msgChan <- token
 	}
-	if o.createCookie{
+	if o.createCookie {
 		cookie := createTokenCookie(token, w)
 		http.SetCookie(w, &cookie)
 	}
-	if o.redirectSuccess{
+	if o.redirectSuccess {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
-		return 
+		return
 	} else {
 		http.Redirect(w, r, "/oauth/success/", http.StatusSeeOther)
 	}
@@ -348,6 +348,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request, executor *agents.
 			continue
 		}
 
+		slog.Debug("History", memoryKey, memory[memoryKey])
 		var userInput string
 		if firstMessage && msg.Pattern != patterns.DefaultPattern {
 			patternText, ok := patterns.AllPatterns[msg.Pattern]
@@ -360,7 +361,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request, executor *agents.
 		} else {
 			userInput += msg.Message
 		}
-		slog.Info("User input: " , "userinput", userInput)
+		slog.Info("User input: ", "userinput", userInput)
 
 		output, err := chains.Call(r.Context(), executor, map[string]any{
 			"input": userInput,

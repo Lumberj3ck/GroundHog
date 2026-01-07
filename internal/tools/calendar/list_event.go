@@ -3,6 +3,7 @@ package calendar
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"golang.org/x/oauth2"
@@ -20,7 +21,8 @@ type Calendar struct {
 }
 
 var (
-	_ tools.Tool = &Calendar{}
+	_              tools.Tool = &Calendar{}
+	ContextAuthKey string     = "OauthTokenSource"
 )
 
 func NewListEvent(credFile string) *Calendar {
@@ -107,7 +109,8 @@ func resolveCredential(ctx context.Context, credFile string) (option.ClientOptio
 		ctx = context.Background()
 	}
 
-	tokenSource := ctx.Value("OauthTokenSource")
+	tokenSource := ctx.Value(ContextAuthKey)
+	slog.Info("Token source: ", "ts", tokenSource)
 	if tokenSource == nil && credFile == "" {
 		return nil, fmt.Errorf("authentication for calendar tool is not configured yet")
 	}

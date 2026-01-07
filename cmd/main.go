@@ -87,7 +87,7 @@ func main() {
 		}
 	}
 
-	if !*serve_tui{
+	if !*serve_tui {
 		server := server.New(agentExecutor, oauthConfig)
 		port := 8080
 		slog.Info("Server starting ", "port", port)
@@ -103,9 +103,8 @@ func main() {
 		}
 		defer f.Close()
 
-
 		msgChan := make(chan *oauth2.Token, 1)
-		go func(){
+		go func() {
 			oauthHandler := server.NewOauthHandler(oauthConfig, false, false, msgChan)
 			http.Handle("/oauth/", oauthHandler)
 			port := 8080

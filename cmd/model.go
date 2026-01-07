@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"groundhog/internal/tools/calendar"
 	"log"
 	"log/slog"
 	"os"
@@ -33,22 +34,41 @@ type (
 const CONF_DIR = ".groundhog"
 const CREDS_FILE = "oauth_creds.json"
 
-type authenticator struct{ }
+type AiResponseMsg string
+type ErrorMsg string
+type TokenMsg oauth2.Token
 
+type authenticator struct {
+	ts oauth2.TokenSource
+}
 
-func (a authenticator) LoggedIn() bool{
-	home, err := os.UserHomeDir()
-	if err != nil{
-		log.Printf("Error finding home dir: %v", err)
+func (a authenticator) LoggedIn() bool {
+	ts, err := a.LoadToken()
+
+	if err != nil {
+		slog.Error("Error while loading token source: ", "error", err)
 		return false
+	}
+
+	_, err = ts.Token()
+	if err != nil {
+		return false
+	}
+	return true
+
+}
+
+func (a authenticator) LoadToken() (oauth2.TokenSource, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("Error finding home dir: %v", err)
 	}
 	fp := filepath.Join(home, CONF_DIR, CREDS_FILE)
 
 	file, err := os.Open(fp)
 
-	if err != nil{
-		log.Printf("Error openning file: %v", err)
-		return false
+	if err != nil {
+		return nil, fmt.Errorf("Error openning file: %v", err)
 	}
 
 	var token oauth2.Token
@@ -56,17 +76,12 @@ func (a authenticator) LoggedIn() bool{
 	decoder.Decode(&token)
 
 	ts := oauth2.StaticTokenSource(&token)
-
-	_, err = ts.Token()
-	if err != nil{
-		return false
-	}
-	return true	
+	return ts, nil
 }
 
 func (a authenticator) SaveToken(token *oauth2.Token) error {
 	home, err := os.UserHomeDir()
-	if err != nil{
+	if err != nil {
 		return fmt.Errorf("Error finding home dir: %v", err)
 	}
 
@@ -77,30 +92,30 @@ func (a authenticator) SaveToken(token *oauth2.Token) error {
 	}
 
 	fp := filepath.Join(dir, CREDS_FILE)
-	file, err := os.OpenFile(fp, os.O_WRONLY | os.O_CREATE, 0644)
-	
-	if err != nil{
+	file, err := os.OpenFile(fp, os.O_WRONLY|os.O_CREATE, 0644)
+
+	if err != nil {
 		return fmt.Errorf("Error openning file: %v", err)
 	}
 
 	encoder := json.NewEncoder(file)
 	err = encoder.Encode(token)
 
-	if err != nil{
+	if err != nil {
 		return fmt.Errorf("Error encoding auth token: %v", strings.ToLower(err.Error()))
 	}
 	return nil
 }
 
 type model struct {
-	viewport    viewport.Model
-	textarea    textarea.Model
-	executor 	*agents.Executor
-	authenticator  authenticator
-	msgChan     chan *oauth2.Token
-	messages    []string
-	senderStyle lipgloss.Style
-	err         error
+	viewport      viewport.Model
+	textarea      textarea.Model
+	executor      *agents.Executor
+	authenticator authenticator
+	msgChan       chan *oauth2.Token
+	messages      []string
+	senderStyle   lipgloss.Style
+	err           error
 }
 
 func initialModel(executor *agents.Executor, msgChan chan *oauth2.Token) model {
@@ -124,52 +139,67 @@ func initialModel(executor *agents.Executor, msgChan chan *oauth2.Token) model {
 Type a message and press Enter to send.`)
 
 	ta.KeyMap.InsertNewline.SetEnabled(false)
+	a := authenticator{}
+	ts, err := a.LoadToken()
+	if err != nil {
+		slog.Info("Error while loading ts: ", "error", err)
+	} else {
+		a.ts = ts
+	}
 
 	return model{
-		textarea:    ta,
-		messages:    []string{},
-		executor: 	 executor, 
-		authenticator: authenticator{},
-		msgChan: msgChan,
-		viewport:    vp,
-		senderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("5")),
-		err:         nil,
+		textarea:      ta,
+		messages:      []string{},
+		executor:      executor,
+		authenticator: a,
+		msgChan:       msgChan,
+		viewport:      vp,
+		senderStyle:   lipgloss.NewStyle().Foreground(lipgloss.Color("5")),
+		err:           nil,
 	}
 }
 
-func receiveOauthToken(m model) tea.Cmd{
-	return func() tea.Msg{
+func receiveOauthToken(m model) tea.Cmd {
+	return func() tea.Msg {
 		log.Println("Waiting for token")
 		token := <-m.msgChan
+		ts := oauth2.StaticTokenSource(token)
+		m.authenticator.ts = ts
+		log.Println(m.authenticator.ts.Token())
+
 		err := m.authenticator.SaveToken(token)
-		if err != nil{
+		if err != nil {
 			log.Printf("Error saving token %v \n", err)
 		}
 		log.Println("Received token ", token)
-		return ""
+		return TokenMsg(*token)
 	}
 }
 
 func (m model) Init() tea.Cmd {
 	var authCmd tea.Cmd
-	if !m.authenticator.LoggedIn(){
-		log.Println("hello")
+	if !m.authenticator.LoggedIn() {
 		exec.Command("xdg-open", "http://localhost:8080/oauth/login/").Start()
-		authCmd = receiveOauthToken(m) 
+		authCmd = receiveOauthToken(m)
 	}
 
-	m.executor.Memory = memory.NewConversationBuffer() 
+	m.executor.Memory = memory.NewConversationBuffer()
 	return tea.Batch(textarea.Blink, authCmd)
 }
 
-type AiResponseMsg string
-
 func handleUserMsgCmd(msg string, m model) tea.Cmd {
 	return func() tea.Msg {
-		log.Println(msg)
-		output, _ := chains.Call(context.TODO(), m.executor, map[string]any{
+		slog.Info("User: ", "msg", msg)
+		ctx := context.WithValue(context.Background(), calendar.ContextAuthKey, m.authenticator.ts)
+		output, err := chains.Call(ctx, m.executor, map[string]any{
 			"input": msg,
 		})
+
+		if err != nil {
+			slog.Info("Received an error: ", "error", err)
+			return ErrorMsg(err.Error())
+		}
+
 		llmOut := output["output"]
 		response, ok := llmOut.(string)
 
@@ -192,18 +222,22 @@ func (m model) handleAddMessage(msg string, role string) model {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
-		tiCmd tea.Cmd
-		vpCmd tea.Cmd
-		huMsgCmd tea.Cmd	
+		tiCmd    tea.Cmd
+		vpCmd    tea.Cmd
+		huMsgCmd tea.Cmd
 	)
 
 	m.textarea, tiCmd = m.textarea.Update(msg)
 	m.viewport, vpCmd = m.viewport.Update(msg)
 
 	switch msg := msg.(type) {
+	case TokenMsg:
+		ts := oauth2.StaticTokenSource((*oauth2.Token)(&msg))
+		m.authenticator.ts = ts
 	case AiResponseMsg:
 		m = m.handleAddMessage(string(msg), "AI")
-
+	case ErrorMsg:
+		m = m.handleAddMessage(string(msg), "Error from agent")
 	case tea.WindowSizeMsg:
 		m.viewport.Width = msg.Width
 		m.textarea.SetWidth(msg.Width)
@@ -242,4 +276,3 @@ func (m model) View() string {
 		m.textarea.View(),
 	)
 }
-

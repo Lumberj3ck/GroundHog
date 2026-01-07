@@ -78,7 +78,6 @@ func (t *Tool) Call(ctx context.Context, input string) (string, error) {
 		return "No notes found.", nil
 	}
 
-
 	llm, err := ollama.New(ollama.WithModel("qwen2.5:3b"), ollama.WithPullModel())
 	if err != nil {
 		return "Initialisation of llm failed", err
