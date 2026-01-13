@@ -39,5 +39,5 @@ func NewAgent(tools []langchainTools.Tool) *agents.Executor {
 		agents.NewOpenAIOption().WithSystemMessage(systemMessage),
 	)
 	myAgent := &OpenAIParametriesedFunctionsAgent{OpenAIFunctionsAgent: baseAgent}
-	return agents.NewExecutor(myAgent, agents.WithMaxIterations(10))
+	return agents.NewExecutor(myAgent, agents.WithMaxIterations(10), agents.WithReturnIntermediateSteps())
 }

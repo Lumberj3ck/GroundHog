@@ -21,7 +21,9 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/tmc/langchaingo/agents"
 	"github.com/tmc/langchaingo/chains"
-	"github.com/tmc/langchaingo/memory"
+	// "github.com/tmc/langchaingo/memory"
+	"groundhog/internal/memory"
+
 	"golang.org/x/oauth2"
 )
 
@@ -61,8 +63,7 @@ func (a authenticator) LoggedIn() bool {
 		}
 	}
 
-	t, err := ts.Token()
-	slog.Info("LoggedIn check", "err_on_token", err, "token", t.AccessToken)
+	_, err = ts.Token()
 	if err != nil && a.credsFile == "" {
 		return false
 	}
@@ -196,7 +197,9 @@ func (m model) Init() tea.Cmd {
 		authCmd = receiveOauthToken(m)
 	}
 
-	m.executor.Memory = memory.NewConversationBuffer()
+	// m.executor.Memory = memory.NewConversationBuffer()
+	m.executor.Memory = memory.NewSummarisedMemory()
+
 	return tea.Batch(textarea.Blink, authCmd)
 }
 
@@ -207,6 +210,9 @@ func handleUserMsgCmd(msg string, m model) tea.Cmd {
 		output, err := chains.Call(ctx, m.executor, map[string]any{
 			"input": msg,
 		})
+
+		mem, _ := m.executor.Memory.LoadMemoryVariables(ctx, map[string]any{ "input": msg, })
+		slog.Info("MEMORY ", "mem", mem["history"])
 
 		if err != nil {
 			slog.Info("Received an error: ", "error", err)

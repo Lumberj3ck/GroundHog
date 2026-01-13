@@ -14,11 +14,11 @@ import (
 	"groundhog/internal/patterns"
 	"groundhog/internal/tools/calendar"
 	"groundhog/internal/tools/tasks"
+	"groundhog/internal/memory"
 
 	"github.com/gorilla/websocket"
 	"github.com/tmc/langchaingo/agents"
 	"github.com/tmc/langchaingo/chains"
-	"github.com/tmc/langchaingo/memory"
 	"github.com/tmc/langchaingo/tools"
 
 	"golang.org/x/oauth2"
@@ -310,7 +310,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request, executor *agents.
 		log.Println(err)
 		return
 	}
-	executor.Memory = memory.NewConversationBuffer()
+	executor.Memory = memory.NewSummarisedMemory()
 
 	defer ws.Close()
 
