@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -84,7 +85,8 @@ func (t *Tool) Call(ctx context.Context, input string) (string, error) {
 	}
 
 	notesContent := PromptFormatNotes(recentNotes)
-	fmt.Printf("Notes content %q \n ", notesContent)
+
+	slog.Debug("Notes content \n ", "notesContent", notesContent)
 
 	output, err := llms.GenerateFromSinglePrompt(ctx, llm, `Read notes provided below. Analyse them, based on your analysis, create a plan of my tommorow day, using all information mentioned in notes, your goal is to make me not forget about what I have writen and just propose. Your losung while creating this plan is: "It is easier to appologies for  extra, then not bringing up something which might have been usefull. \n`+notesContent)
 	if err != nil {
@@ -113,17 +115,17 @@ func parseAmount(input string) int {
 }
 
 func PromptFormatNotes(notes []DateFile) string {
-	prompt := ""
+	var prompt strings.Builder
 	for _, note := range notes {
 		c, err := os.ReadFile(note.FilePath)
 		if err != nil {
 			log.Println("Couldn't read note file")
 			continue
 		}
-		prompt += fmt.Sprintf("\nNote %s:\n", note.Time.Format(time.DateOnly))
-		prompt += string(c) + "\n"
+		fmt.Fprintf(&prompt, "\nNote %s:\n", note.Time.Format(time.DateOnly))
+		prompt.WriteString(string(c) + "\n")
 	}
-	return prompt
+	return prompt.String()
 }
 
 func GetLastNotes(notesDir string, amount int) ([]DateFile, error) {

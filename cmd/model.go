@@ -39,7 +39,16 @@ type ErrorMsg string
 type TokenMsg oauth2.Token
 
 type authenticator struct {
-	ts oauth2.TokenSource
+	ts        oauth2.TokenSource
+	config    oauth2.Config
+	credsFile string
+}
+
+func NewAuthenticator(config oauth2.Config, credsFile string) authenticator {
+	return authenticator{
+		config:    config,
+		credsFile: credsFile,
+	}
 }
 
 func (a authenticator) LoggedIn() bool {
@@ -47,13 +56,17 @@ func (a authenticator) LoggedIn() bool {
 
 	if err != nil {
 		slog.Error("Error while loading token source: ", "error", err)
+		if a.credsFile == "" {
+			return false
+		}
+	}
+
+	t, err := ts.Token()
+	slog.Info("LoggedIn check", "err_on_token", err, "token", t.AccessToken)
+	if err != nil && a.credsFile == "" {
 		return false
 	}
 
-	_, err = ts.Token()
-	if err != nil {
-		return false
-	}
 	return true
 
 }
@@ -75,7 +88,7 @@ func (a authenticator) LoadToken() (oauth2.TokenSource, error) {
 	decoder := json.NewDecoder(file)
 	decoder.Decode(&token)
 
-	ts := oauth2.StaticTokenSource(&token)
+	ts := a.config.TokenSource(context.Background(), &token)
 	return ts, nil
 }
 
@@ -118,7 +131,7 @@ type model struct {
 	err           error
 }
 
-func initialModel(executor *agents.Executor, msgChan chan *oauth2.Token) model {
+func initialModel(executor *agents.Executor, msgChan chan *oauth2.Token, oauthConfig oauth2.Config, credsFile string) model {
 	ta := textarea.New()
 	ta.Placeholder = "Send a message..."
 	ta.Focus()
@@ -139,7 +152,7 @@ func initialModel(executor *agents.Executor, msgChan chan *oauth2.Token) model {
 Type a message and press Enter to send.`)
 
 	ta.KeyMap.InsertNewline.SetEnabled(false)
-	a := authenticator{}
+	a := NewAuthenticator(oauthConfig, credsFile)
 	ts, err := a.LoadToken()
 	if err != nil {
 		slog.Info("Error while loading ts: ", "error", err)
